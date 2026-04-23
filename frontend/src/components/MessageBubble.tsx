@@ -15,7 +15,7 @@ export default function MessageBubble({ message, toolResultsById }: Props) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="bg-blue-600 text-white rounded-2xl px-4 py-2 max-w-[75%] whitespace-pre-wrap break-words">
+        <div className="bg-indigo-600 text-white rounded-2xl px-4 py-2 max-w-[75%] whitespace-pre-wrap break-words">
           {message.content}
         </div>
       </div>

@@ -21,6 +21,7 @@ async def test_all_vault_tools_registered(indexed_vault, indexer):
         "write_file",
         "edit_file",
         "append_to_file",
+        "list_todos",
     }
 
 

@@ -119,7 +119,7 @@ export default function AuditPage() {
           />
           <button
             type="submit"
-            className="text-xs bg-black text-white rounded px-3 py-1"
+            className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-3 py-1 transition"
           >
             Filter
           </button>

@@ -1,3 +1,13 @@
+import {
+  Activity,
+  CheckCircle2,
+  Clock,
+  FolderOpen,
+  LogOut,
+  MessageSquare,
+  Plus,
+  type LucideIcon,
+} from 'lucide-react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 
 import { useLogout } from '../hooks/useAuth'
@@ -5,6 +15,16 @@ import {
   useConversations,
   useCreateConversation,
 } from '../hooks/useConversations'
+
+type NavItem = { to: string; label: string; Icon: LucideIcon; end?: boolean }
+
+const navItems: NavItem[] = [
+  { to: '/', label: 'Chat', Icon: MessageSquare, end: true },
+  { to: '/todos', label: 'Todos', Icon: CheckCircle2 },
+  { to: '/files', label: 'Files', Icon: FolderOpen },
+  { to: '/scheduled', label: 'Scheduled', Icon: Clock },
+  { to: '/audit', label: 'Audit', Icon: Activity },
+]
 
 export default function Sidebar() {
   const logout = useLogout()
@@ -26,55 +46,40 @@ export default function Sidebar() {
         <button
           onClick={startNew}
           disabled={createConv.isPending}
-          className="text-xs bg-black text-white rounded px-2 py-1 hover:bg-gray-800 disabled:opacity-50"
+          className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-2 py-1 flex items-center gap-1 disabled:opacity-50"
           title="New conversation"
         >
-          + New
+          <Plus size={12} strokeWidth={2.5} />
+          New
         </button>
       </div>
 
       <nav className="flex-1 p-2 space-y-0.5 text-sm overflow-auto">
-        <NavLink
-          to="/"
-          end
-          className={({ isActive }) =>
-            `block px-3 py-2 rounded ${
-              isActive ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
-            }`
-          }
-        >
-          Chat
-        </NavLink>
-        <NavLink
-          to="/files"
-          className={({ isActive }) =>
-            `block px-3 py-2 rounded ${
-              isActive ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
-            }`
-          }
-        >
-          Files
-        </NavLink>
-        <NavLink
-          to="/scheduled"
-          className={({ isActive }) =>
-            `block px-3 py-2 rounded ${
-              isActive ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
-            }`
-          }
-        >
-          Scheduled
-        </NavLink>
-        <NavLink
-          to="/audit"
-          className={({ isActive }) =>
-            `block px-3 py-2 rounded ${
-              isActive ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
-            }`
-          }
-        >
-          Audit
-        </NavLink>
+        {navItems.map(({ to, label, Icon, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) =>
+              `flex items-center gap-2.5 px-3 py-2 rounded-lg transition ${
+                isActive
+                  ? 'bg-indigo-50 text-indigo-900 font-medium'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <Icon
+                  size={16}
+                  strokeWidth={isActive ? 2.25 : 1.75}
+                  className={isActive ? 'text-indigo-600' : 'text-gray-500'}
+                />
+                {label}
+              </>
+            )}
+          </NavLink>
+        ))}
 
         <div className="mt-4 px-3 text-xs uppercase tracking-wide text-gray-400">
           Conversations
@@ -90,8 +95,10 @@ export default function Sidebar() {
             key={conv.id}
             to={`/conversations/${conv.id}`}
             className={({ isActive }) =>
-              `block px-3 py-2 rounded truncate ${
-                isActive ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
+              `block px-3 py-1.5 rounded-lg truncate text-sm transition ${
+                isActive
+                  ? 'bg-indigo-50 text-indigo-900 font-medium'
+                  : 'text-gray-600 hover:bg-gray-100'
               }`
             }
           >
@@ -104,8 +111,9 @@ export default function Sidebar() {
         <button
           onClick={() => logout.mutate()}
           disabled={logout.isPending}
-          className="w-full text-left px-3 py-2 rounded text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+          className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-50"
         >
+          <LogOut size={16} strokeWidth={1.75} className="text-gray-500" />
           {logout.isPending ? 'Signing out…' : 'Sign out'}
         </button>
       </div>

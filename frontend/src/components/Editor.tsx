@@ -173,7 +173,7 @@ export default function Editor({ path, onBack, onDeleted }: Props) {
             type="button"
             onClick={save}
             disabled={!dirty || writeFile.isPending || !!conflict}
-            className="text-xs bg-black text-white rounded px-3 py-1 disabled:opacity-40"
+            className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded px-3 py-1 disabled:opacity-40 transition"
             title="Save (⌘S)"
           >
             Save
