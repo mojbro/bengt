@@ -8,6 +8,7 @@ from app.agent.events import (
     AgentText,
     AgentToolResult,
     AgentToolStart,
+    AgentTurnEnd,
     AgentUsage,
 )
 from app.agent.tools import ToolRegistry
@@ -62,8 +63,10 @@ class AgentLoop:
 
         for _ in range(self.max_iterations):
             collected: list[ToolCall] = []
+            text_chunks: list[str] = []
             async for event in self.llm.stream(messages, tools=tool_specs):
                 if isinstance(event, TextDelta):
+                    text_chunks.append(event.text)
                     yield AgentText(text=event.text)
                 elif isinstance(event, ToolCallEvent):
                     collected.append(event.tool_call)
@@ -74,12 +77,15 @@ class AgentLoop:
                         cost_usd=event.cost_usd,
                     )
 
+            turn_text = "".join(text_chunks)
+            yield AgentTurnEnd(text=turn_text, tool_calls=list(collected))
+
             if not collected:
                 yield AgentDone()
                 return
 
             messages.append(
-                Message(role="assistant", content="", tool_calls=collected)
+                Message(role="assistant", content=turn_text, tool_calls=collected)
             )
 
             for tc in collected:

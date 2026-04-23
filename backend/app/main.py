@@ -10,7 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.agent import AgentLoop, ToolRegistry
 from app.agent.scheduler_tools import register_scheduler_tools
 from app.agent.vault_tools import register_vault_tools
-from app.api import auth, conversations, vault
+from app.api import auth, chat, conversations, vault
 from app.config import Settings
 from app.config import settings as default_settings
 from app.db import ConversationService
@@ -85,6 +85,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(vault.router)
     app.include_router(conversations.router)
+    app.include_router(chat.router)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:

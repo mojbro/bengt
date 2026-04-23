@@ -5,6 +5,7 @@ from app.agent.events import (
     AgentText,
     AgentToolResult,
     AgentToolStart,
+    AgentTurnEnd,
     AgentUsage,
 )
 from app.agent.loop import AgentLoop
@@ -19,6 +20,7 @@ __all__ = [
     "AgentText",
     "AgentToolResult",
     "AgentToolStart",
+    "AgentTurnEnd",
     "AgentUsage",
     "Tool",
     "ToolRegistry",
