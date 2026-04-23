@@ -1,29 +1,28 @@
-import { useQuery } from '@tanstack/react-query'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 
-type Health = { status: string; llm_provider: string }
+import ProtectedRoute from './components/ProtectedRoute'
+import AppShell from './routes/AppShell'
+import ConversationPage from './routes/ConversationPage'
+import Home from './routes/Home'
+import LoginPage from './routes/LoginPage'
 
-async function fetchHealth(): Promise<Health> {
-  const res = await fetch('/api/health')
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
-}
+const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
+  {
+    element: <ProtectedRoute />,
+    children: [
+      {
+        path: '/',
+        element: <AppShell />,
+        children: [
+          { index: true, element: <Home /> },
+          { path: 'conversations/:id', element: <ConversationPage /> },
+        ],
+      },
+    ],
+  },
+])
 
 export default function App() {
-  const { data, error, isLoading } = useQuery({
-    queryKey: ['health'],
-    queryFn: fetchHealth,
-  })
-
-  return (
-    <main style={{ fontFamily: 'system-ui', padding: '2rem', maxWidth: 640, margin: '0 auto' }}>
-      <h1>bengt</h1>
-      <p>Personal AI assistant. Scaffold is alive.</p>
-      <section>
-        <h2>Backend health</h2>
-        {isLoading && <p>Checking…</p>}
-        {error && <pre style={{ color: 'crimson' }}>{String(error)}</pre>}
-        {data && <pre>{JSON.stringify(data, null, 2)}</pre>}
-      </section>
-    </main>
-  )
+  return <RouterProvider router={router} />
 }
