@@ -17,6 +17,7 @@ Auth is via the session cookie set by /api/auth/login. Unauthenticated
 connections are closed with policy-violation (1008) before accept.
 """
 
+import asyncio
 import logging
 from typing import Any
 
@@ -32,6 +33,7 @@ from app.agent import (
     AgentUsage,
 )
 from app.db import NotFoundError
+from app.titling import maybe_auto_title
 
 log = logging.getLogger(__name__)
 
@@ -82,6 +84,9 @@ async def chat_ws(websocket: WebSocket) -> None:
     agent = websocket.app.state.agent
     conversations = websocket.app.state.conversations
     ws_manager = websocket.app.state.ws_manager
+    settings = websocket.app.state.settings
+    audit = getattr(websocket.app.state, "audit", None)
+    llm = websocket.app.state.llm
     ws_manager.add(websocket)
 
     try:
@@ -142,6 +147,21 @@ async def chat_ws(websocket: WebSocket) -> None:
                 log.exception("chat turn failed")
                 await websocket.send_json(
                     {"type": "error", "message": f"agent error: {exc}"}
+                )
+
+            # Fire-and-forget title generation — if this is a fresh
+            # conversation, propose a descriptive name so "New thread"
+            # doesn't hang around in the sidebar. Runs off the hot path
+            # so it doesn't add latency to the user's reply.
+            if settings.auto_title:
+                asyncio.create_task(
+                    maybe_auto_title(
+                        conv_id=conv_id,
+                        conversations=conversations,
+                        llm=llm,
+                        audit=audit,
+                        ws_manager=ws_manager,
+                    )
                 )
     except WebSocketDisconnect:
         pass
