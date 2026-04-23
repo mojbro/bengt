@@ -43,7 +43,7 @@ docker compose up --build
 - [x] 9. WebSocket for streaming chat
 - [x] 10. Frontend: auth, routing, layout
 - [x] 11. Frontend: chat view with streaming
-- [ ] 12. Frontend: vault file tree + editor
+- [x] 12. Frontend: vault file tree + editor
 - [ ] 13. Frontend: scheduled jobs view
 - [ ] 14. APScheduler integration and job firing flow
 - [ ] 15. Audit log + cost tracking + daily budget enforcement

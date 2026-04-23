@@ -34,13 +34,36 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 p-2 space-y-0.5 text-sm overflow-auto">
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) =>
+            `block px-3 py-2 rounded ${
+              isActive ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
+            }`
+          }
+        >
+          Chat
+        </NavLink>
+        <NavLink
+          to="/files"
+          className={({ isActive }) =>
+            `block px-3 py-2 rounded ${
+              isActive ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
+            }`
+          }
+        >
+          Files
+        </NavLink>
+
+        <div className="mt-4 px-3 text-xs uppercase tracking-wide text-gray-400">
+          Conversations
+        </div>
         {conversations.isLoading && (
           <p className="px-3 py-2 text-gray-400 text-xs">Loading…</p>
         )}
         {conversations.data?.length === 0 && (
-          <p className="px-3 py-2 text-gray-500 text-xs">
-            No conversations yet.
-          </p>
+          <p className="px-3 py-2 text-gray-500 text-xs">None yet.</p>
         )}
         {conversations.data?.map((conv) => (
           <NavLink
