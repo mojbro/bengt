@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from app.config import settings
 from app.indexer import Indexer
+from app.llm import build_provider
 from app.vault import VaultService
 
 
@@ -14,8 +15,10 @@ async def lifespan(app: FastAPI):
     vault = VaultService(Path(settings.vault_path), indexer=indexer)
     vault.bootstrap()
     indexer.reindex_all(vault.root)
+    llm = build_provider(settings)
     app.state.vault = vault
     app.state.indexer = indexer
+    app.state.llm = llm
     yield
 
 
