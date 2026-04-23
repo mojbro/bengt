@@ -234,6 +234,35 @@ async def test_system_prompt_handles_missing_files(tmp_path):
     assert "(empty)" in messages[0].content
 
 
+async def test_system_prompt_lists_vault_contents(vault: VaultService):
+    # vault fixture bootstraps the three stubs; plus add a custom file.
+    vault.write("bio.md", "# Bio\nCall me Philip.\n", actor="user")
+    agent = AgentLoop(
+        llm=ScriptedProvider([[Usage(0, 0, None)]]),
+        tools=ToolRegistry(),
+        vault=vault,
+    )
+    prompt = agent._build_context("hi", [])[0].content
+    # Each top-level file should appear in the orientation listing.
+    assert "- bio.md" in prompt
+    assert "- memory.md" in prompt
+    assert "- todos.md" in prompt
+    # `.git` is noise, don't leak it into the prompt.
+    assert ".git" not in prompt
+
+
+async def test_system_prompt_instructs_tool_use_before_giving_up(vault: VaultService):
+    agent = AgentLoop(
+        llm=ScriptedProvider([[Usage(0, 0, None)]]),
+        tools=ToolRegistry(),
+        vault=vault,
+    )
+    prompt = agent._build_context("hi", [])[0].content
+    # Key phrases that push the model toward search-before-ignorance.
+    assert "search_vault" in prompt
+    assert "check before answering" in prompt.lower() or "look" in prompt.lower()
+
+
 async def test_history_threads_between_user_and_system(vault: VaultService):
     provider = ScriptedProvider([[TextDelta("k"), Usage(0, 0, None)]])
     agent = AgentLoop(llm=provider, tools=ToolRegistry(), vault=vault)
