@@ -1,5 +1,6 @@
 import type { MessageOut } from '../hooks/useConversations'
 
+import Markdown from './Markdown'
 import ToolInvocation from './ToolInvocation'
 
 type Props = {
@@ -38,8 +39,8 @@ export default function MessageBubble({ message, toolResultsById }: Props) {
           )
         })}
         {message.content && (
-          <div className="bg-gray-100 rounded-2xl px-4 py-2 whitespace-pre-wrap break-words">
-            {message.content}
+          <div className="bg-gray-100 rounded-2xl px-4 py-2 break-words">
+            <Markdown>{message.content}</Markdown>
           </div>
         )}
       </div>
