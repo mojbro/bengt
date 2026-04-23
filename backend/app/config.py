@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # The assistant's name. Appears in the system prompt so the agent
     # knows how to refer to itself. Replaceable via env.
     assistant_name: str = "Bengt"
+    # IANA timezone name used when the prompt tells the agent what "today"
+    # means to the user. Override via TIMEZONE env (e.g. Europe/Stockholm).
+    timezone: str = "UTC"
     inbox_scan_interval_minutes: int = 15
     # Tests flip this off so APScheduler doesn't fire jobs during pytest.
     scheduler_autostart: bool = True

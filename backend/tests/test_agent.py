@@ -285,6 +285,48 @@ async def test_system_prompt_uses_custom_assistant_name(vault: VaultService):
     assert "Bengt" not in prompt
 
 
+async def test_system_prompt_includes_weekday(vault: VaultService):
+    agent = AgentLoop(
+        llm=ScriptedProvider([[Usage(0, 0, None)]]),
+        tools=ToolRegistry(),
+        vault=vault,
+    )
+    prompt = agent._build_context("hi", [])[0].content
+    # A weekday name should appear (English, not just the ISO date).
+    weekdays = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
+    assert any(day in prompt for day in weekdays)
+
+
+async def test_system_prompt_honors_configured_timezone(vault: VaultService):
+    agent = AgentLoop(
+        llm=ScriptedProvider([[Usage(0, 0, None)]]),
+        tools=ToolRegistry(),
+        vault=vault,
+        timezone="Europe/Stockholm",
+    )
+    prompt = agent._build_context("hi", [])[0].content
+    assert "Europe/Stockholm" in prompt
+
+
+async def test_agent_falls_back_to_utc_on_bad_timezone(vault: VaultService):
+    agent = AgentLoop(
+        llm=ScriptedProvider([[Usage(0, 0, None)]]),
+        tools=ToolRegistry(),
+        vault=vault,
+        timezone="Nowhere/Fake",
+    )
+    prompt = agent._build_context("hi", [])[0].content
+    assert "UTC" in prompt
+
+
 async def test_system_prompt_tells_agent_to_save_proactively(vault: VaultService):
     agent = AgentLoop(
         llm=ScriptedProvider([[Usage(0, 0, None)]]),
