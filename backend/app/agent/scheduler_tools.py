@@ -19,7 +19,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 
 from app.agent.tools import Tool, ToolRegistry
-from app.scheduler import job_fire_placeholder
+from app.scheduler_runner import fire_scheduled_job
 
 
 def _parse_trigger(when: str) -> BaseTrigger:
@@ -67,7 +67,7 @@ def register_scheduler_tools(
         instruction = str(args["instruction"])
         trigger = _parse_trigger(when)
         job = scheduler.add_job(
-            job_fire_placeholder,
+            fire_scheduled_job,
             trigger=trigger,
             kwargs={"instruction": instruction},
         )

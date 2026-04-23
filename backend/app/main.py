@@ -1,3 +1,4 @@
+import logging
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -13,12 +14,20 @@ from app.agent.vault_tools import register_vault_tools
 from app.api import auth, chat, conversations, scheduler as scheduler_api, vault
 from app.config import Settings
 from app.config import settings as default_settings
-from app.db import ConversationService
+from app.db import ConversationService, NotFoundError
 from app.db.models import Base
 from app.indexer import Indexer
 from app.llm import build_provider
 from app.scheduler import create_scheduler
+from app.scheduler_runner import (
+    SchedulerServices,
+    clear_services,
+    register_services,
+)
 from app.vault import VaultService
+from app.ws_manager import ConnectionManager
+
+log = logging.getLogger(__name__)
 
 
 def _load_or_create_session_secret(data_path: Path) -> str:
@@ -28,6 +37,28 @@ def _load_or_create_session_secret(data_path: Path) -> str:
     secret = secrets.token_hex(32)
     secret_path.write_text(secret)
     return secret
+
+
+def _ensure_scheduled_conversation(
+    conv_service: ConversationService, data_path: Path
+) -> str:
+    """Find-or-create the dedicated thread for scheduled-job output.
+
+    ID is persisted in `.scheduled_conversation_id` so restarts keep the
+    same thread (and it survives user-driven renames of the conversation).
+    """
+    pointer = data_path / ".scheduled_conversation_id"
+    if pointer.exists():
+        existing_id = pointer.read_text().strip()
+        try:
+            conv_service.get(existing_id)
+            return existing_id
+        except NotFoundError:
+            # Stale pointer (e.g., DB wiped); fall through to recreate.
+            pass
+    conv = conv_service.create(title="Scheduled")
+    pointer.write_text(conv.id)
+    return conv.id
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -52,13 +83,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         llm = build_provider(s)
 
         scheduler = create_scheduler()
-        # scheduler is intentionally not started; step 14 starts it.
-
         tools = ToolRegistry()
         register_vault_tools(tools, vault_svc, indexer)
         register_scheduler_tools(tools, scheduler)
 
         agent = AgentLoop(llm=llm, tools=tools, vault=vault_svc)
+
+        ws_manager = ConnectionManager()
+        scheduled_conv_id: str | None = None
+
+        # Only wire up the scheduler's runtime plumbing when it's actually
+        # going to fire. Tests turn autostart off so they don't get a
+        # surprise "Scheduled" conversation in their empty-list assertions.
+        if s.scheduler_autostart:
+            scheduled_conv_id = _ensure_scheduled_conversation(
+                conv_service, data_path
+            )
+            register_services(
+                SchedulerServices(
+                    agent=agent,
+                    conversations=conv_service,
+                    ws_manager=ws_manager,
+                    scheduled_conversation_id=scheduled_conv_id,
+                )
+            )
+            scheduler.start()
+            log.info("scheduler started")
 
         app.state.settings = s
         app.state.vault = vault_svc
@@ -69,10 +119,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.agent = agent
         app.state.db_engine = engine
         app.state.conversations = conv_service
+        app.state.ws_manager = ws_manager
+        app.state.scheduled_conversation_id = scheduled_conv_id  # may be None in tests
 
         try:
             yield
         finally:
+            if scheduler.running:
+                scheduler.shutdown(wait=False)
+            clear_services()
             engine.dispose()
 
     app = FastAPI(title="bengt", version="0.1.0", lifespan=lifespan)

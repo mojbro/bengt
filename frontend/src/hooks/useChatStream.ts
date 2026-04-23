@@ -23,6 +23,7 @@ type ChatEvent =
   | { type: 'usage'; input_tokens: number; output_tokens: number; cost_usd: number | null }
   | { type: 'done' }
   | { type: 'error'; message: string }
+  | { type: 'notification'; kind: string; conversation_id: string; instruction?: string }
 
 const PING_INTERVAL_MS = 25_000
 const MAX_RECONNECT_ATTEMPTS = 5
@@ -101,6 +102,14 @@ export function useChatStream(conversationId: string | undefined) {
       } else if (event.type === 'error') {
         setError(event.message)
         setStreaming(null)
+      } else if (event.type === 'notification') {
+        // Server-pushed (e.g. scheduled job fired in another conversation).
+        // Invalidate so the sidebar + affected conversation reflect the
+        // new DB state without a full reload.
+        queryClient.invalidateQueries({ queryKey: ['conversations'] })
+        queryClient.invalidateQueries({
+          queryKey: ['conversations', event.conversation_id],
+        })
       }
     }
 

@@ -81,6 +81,8 @@ async def chat_ws(websocket: WebSocket) -> None:
 
     agent = websocket.app.state.agent
     conversations = websocket.app.state.conversations
+    ws_manager = websocket.app.state.ws_manager
+    ws_manager.add(websocket)
 
     try:
         while True:
@@ -140,4 +142,6 @@ async def chat_ws(websocket: WebSocket) -> None:
                     {"type": "error", "message": f"agent error: {exc}"}
                 )
     except WebSocketDisconnect:
-        return
+        pass
+    finally:
+        ws_manager.remove(websocket)
