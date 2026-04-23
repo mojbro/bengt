@@ -86,6 +86,11 @@ async def chat_ws(websocket: WebSocket) -> None:
         while True:
             data = await websocket.receive_json()
 
+            # Keepalive pings from the client — sent periodically to prevent
+            # idle timeouts on intermediate proxies. Just absorb them.
+            if isinstance(data, dict) and data.get("type") == "ping":
+                continue
+
             conv_id = data.get("conversation_id")
             content = data.get("content")
             if not isinstance(conv_id, str) or not isinstance(content, str):

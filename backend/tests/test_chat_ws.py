@@ -171,6 +171,27 @@ def test_ws_bad_payload_reports_error(authed_client):
         assert event["type"] == "error"
 
 
+def test_ws_ignores_ping_frames(authed_client):
+    """Pings keep the connection alive but shouldn't surface errors."""
+    conv_id = _create_conversation(authed_client)
+    _swap_agent(
+        authed_client,
+        [[TextDelta("pong"), Usage(0, 0, None)]],
+    )
+    with authed_client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "ping"})
+        ws.send_json({"type": "ping"})
+        # After pings, a real message should still work normally.
+        ws.send_json({"conversation_id": conv_id, "content": "hello"})
+        events = []
+        while True:
+            ev = ws.receive_json()
+            events.append(ev)
+            if ev["type"] == "done":
+                break
+    assert all(e["type"] != "error" for e in events)
+
+
 def test_ws_history_is_threaded(authed_client):
     conv_id = _create_conversation(authed_client)
     provider = _swap_agent(
