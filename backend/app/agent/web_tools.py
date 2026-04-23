@@ -14,7 +14,7 @@ import asyncio
 from typing import Any
 
 import trafilatura
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 from app.agent.tools import Tool, ToolRegistry
 
