@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { Pencil } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
+import { ApiError } from '../api/client'
 import { useChatStream } from '../hooks/useChatStream'
 import {
   useConversation,
   useDeleteConversation,
+  useRenameConversation,
   type MessageOut,
 } from '../hooks/useConversations'
 
@@ -18,8 +21,12 @@ export default function ChatView({ conversationId }: Props) {
   const { data: conversation, isLoading, error: loadError } = useConversation(conversationId)
   const { streaming, error: streamError, connected, send } = useChatStream(conversationId)
   const deleteConv = useDeleteConversation()
+  const renameConv = useRenameConversation()
   const navigate = useNavigate()
   const endRef = useRef<HTMLDivElement>(null)
+
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
 
   const toolResultsById = useMemo(() => {
     const map = new Map<string, { result: string; error: boolean }>()
@@ -35,6 +42,15 @@ export default function ChatView({ conversationId }: Props) {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [conversation?.messages.length, streaming?.text, streaming?.tools.length])
+
+  // If the conversation disappears out from under us (deleted in another
+  // tab, or the agent cleaned up), don't strand the user on a 404 screen —
+  // bounce them back to the list.
+  useEffect(() => {
+    if (loadError instanceof ApiError && loadError.status === 404) {
+      navigate('/', { replace: true })
+    }
+  }, [loadError, navigate])
 
   if (isLoading) {
     return <div className="p-6 text-gray-500 text-sm">Loading…</div>
@@ -53,23 +69,83 @@ export default function ChatView({ conversationId }: Props) {
 
   const isStreaming = streaming !== null
 
-  function handleDelete() {
+  function startEditTitle() {
+    if (!conversation) return
+    setTitleDraft(conversation.title)
+    setEditingTitle(true)
+  }
+
+  async function saveTitle() {
+    setEditingTitle(false)
+    const trimmed = titleDraft.trim()
+    if (!trimmed || !conversation || trimmed === conversation.title) return
+    try {
+      await renameConv.mutateAsync({ id: conversationId, title: trimmed })
+    } catch (err) {
+      window.alert(
+        `Couldn't rename: ${err instanceof Error ? err.message : 'unknown'}`,
+      )
+    }
+  }
+
+  function onTitleKey(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      ;(e.target as HTMLInputElement).blur()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setEditingTitle(false)
+    }
+  }
+
+  async function handleDelete() {
     if (!conversation) return
     if (
-      window.confirm(
+      !window.confirm(
         `Delete "${conversation.title}"?\n\nThis removes the conversation and all its messages. It cannot be undone.`,
       )
     ) {
-      deleteConv.mutate(conversationId, {
-        onSuccess: () => navigate('/'),
-      })
+      return
+    }
+    try {
+      await deleteConv.mutateAsync(conversationId)
+      navigate('/', { replace: true })
+    } catch (err) {
+      window.alert(
+        `Delete failed: ${err instanceof Error ? err.message : 'unknown'}`,
+      )
     }
   }
 
   return (
     <div className="flex flex-col h-full">
-      <header className="border-b px-4 py-3 flex items-center justify-between gap-3">
-        <h2 className="font-medium truncate">{conversation.title}</h2>
+      <header className="border-b px-4 md:px-6 py-4 sticky top-0 bg-white z-10 flex items-center justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          {editingTitle ? (
+            <input
+              type="text"
+              autoFocus
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={onTitleKey}
+              className="w-full text-xl font-semibold bg-transparent border-b-2 border-indigo-500 focus:outline-none text-base md:text-xl"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={startEditTitle}
+              className="flex items-center gap-2 min-w-0 text-left group"
+              title="Click to rename"
+            >
+              <span className="text-xl font-semibold truncate">{conversation.title}</span>
+              <Pencil
+                size={14}
+                className="flex-shrink-0 text-gray-300 group-hover:text-gray-500 transition"
+              />
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-3 flex-shrink-0">
           <Link
             to={`/audit?conversation_id=${encodeURIComponent(conversationId)}`}

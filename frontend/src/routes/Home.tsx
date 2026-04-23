@@ -32,8 +32,8 @@ export default function Home() {
 
   return (
     <div className="h-full overflow-auto bg-white">
-      <header className="border-b px-4 py-3 flex items-center justify-between sticky top-0 bg-white">
-        <h1 className="text-lg font-medium">Chat</h1>
+      <header className="border-b px-4 md:px-6 py-4 sticky top-0 bg-white z-10 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">Chat</h1>
         <button
           onClick={startNew}
           disabled={createConv.isPending}
