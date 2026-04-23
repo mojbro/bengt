@@ -38,7 +38,7 @@ docker compose up --build
 - [x] 4. LLM abstraction + one provider (OpenAI)
 - [x] 5. Agent loop with tool calling (mock tools first)
 - [x] 6. Real tool implementations (vault tools, scheduling tools)
-- [ ] 7. Conversation persistence and retrieval (multiple threads)
+- [x] 7. Conversation persistence and retrieval (multiple threads)
 - [ ] 8. REST API surface (auth, vault CRUD, conversations)
 - [ ] 9. WebSocket for streaming chat
 - [ ] 10. Frontend: auth, routing, layout
@@ -65,7 +65,8 @@ Violate these only with explicit user sign-off in the conversation.
 - The product name `bengt` appears in a handful of user-facing strings only (HTML title, top heading, FastAPI app title, this file, PRD). Don't bake it into package names, service names, DB names, URL paths, class names, or env vars — use generic terms ("backend", "frontend", "agent").
 - Two directories — `vault/` and `data/` — are runtime state and gitignored. Docker creates them on first `up`.
 - Backend Python deps: add to `backend/pyproject.toml`, then regenerate the lock with `docker run --rm -v "$PWD/backend:/work" -w /work ghcr.io/astral-sh/uv:python3.12-bookworm-slim uv lock` (or `uv lock` locally if you have uv installed). Commit both `pyproject.toml` and `uv.lock`.
-- Run backend tests with `docker compose exec backend pytest -q` (69 tests as of step 6). Integration tests (4, opt-in) hit real OpenAI: `docker compose exec backend pytest -m integration -v`.
+- Run backend tests with `docker compose exec backend pytest -q` (89 tests as of step 7). Integration tests (4, opt-in) hit real OpenAI: `docker compose exec backend pytest -m integration -v`.
+- Conversation persistence: `app/db/` has SQLAlchemy 2.x models (`Conversation`, `Message`) and `ConversationService` at `app.state.conversations`. SQLite lives at `/app/data/app.db` (bind-mounted → `./data/app.db` on host). `ConversationService.to_llm_messages(conv_id)` converts DB rows to `llm.Message` for feeding `AgentLoop.run(history=...)`. AgentLoop stays pure; the caller (step 8/9) owns the persist-as-you-stream flow.
 - Real agent tools live in `app/agent/vault_tools.py` (search/list/read/write/edit/append — all writes commit as `actor="agent"`) and `app/agent/scheduler_tools.py` (schedule/list/cancel). The APScheduler instance is created but intentionally NOT started in step 6; jobs are stored and listable via triggers, but won't fire until step 14 swaps `job_fire_placeholder` for real agent invocation and starts the scheduler. `schedule_job`'s `when` auto-detects ISO 8601 datetime vs 5-field cron; naive datetimes are assumed UTC.
 - The agent loop (`app/agent/`) is ReAct-style: system prompt → LLM stream → collect tool calls → execute → feed back → repeat until text-only or `max_iterations`. It emits agent-level events (`AgentText | AgentToolStart | AgentToolResult | AgentUsage | AgentError | AgentDone`) — not to be confused with raw LLM stream events. Tools live in `app.state.tools` (a `ToolRegistry`); swap `register_mock_tools` for real ones in step 6.
 - The LLM layer (`app/llm/`) is provider-agnostic by design. `LLMProvider` is a Protocol; `OpenAIProvider` is the current impl; Ollama slots in without touching call sites. All wire-format translation stays inside each provider's file — nothing OpenAI-specific leaks through the Protocol. Adding a new provider: add a class with `.name`, `.model`, `.stream(...)`, and a branch in `factory.build_provider`. Add its pricing to `app/llm/pricing.py` when known.
