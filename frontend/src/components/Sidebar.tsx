@@ -65,6 +65,16 @@ export default function Sidebar() {
         >
           Scheduled
         </NavLink>
+        <NavLink
+          to="/audit"
+          className={({ isActive }) =>
+            `block px-3 py-2 rounded ${
+              isActive ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
+            }`
+          }
+        >
+          Audit
+        </NavLink>
 
         <div className="mt-4 px-3 text-xs uppercase tracking-wide text-gray-400">
           Conversations

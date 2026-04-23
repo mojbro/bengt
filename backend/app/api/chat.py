@@ -116,7 +116,9 @@ async def chat_ws(websocket: WebSocket) -> None:
             conversations.append_message(conv_id, "user", content)
 
             try:
-                async for event in agent.run(content, history=history):
+                async for event in agent.run(
+                    content, history=history, conversation_id=conv_id
+                ):
                     wire = _event_to_wire(event)
                     if wire is not None:
                         await websocket.send_json(wire)

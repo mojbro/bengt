@@ -11,10 +11,18 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.agent import AgentLoop, ToolRegistry
 from app.agent.scheduler_tools import register_scheduler_tools
 from app.agent.vault_tools import register_vault_tools
-from app.api import auth, chat, conversations, scheduler as scheduler_api, vault
+from app.api import (
+    audit as audit_api,
+    auth,
+    chat,
+    conversations,
+    scheduler as scheduler_api,
+    vault,
+)
+from app.budget import BudgetService
 from app.config import Settings
 from app.config import settings as default_settings
-from app.db import ConversationService, NotFoundError
+from app.db import AuditService, ConversationService, NotFoundError
 from app.db.models import Base
 from app.indexer import Indexer
 from app.llm import build_provider
@@ -79,6 +87,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         Base.metadata.create_all(engine)
         session_factory = sessionmaker(bind=engine, expire_on_commit=False)
         conv_service = ConversationService(session_factory)
+        audit_service = AuditService(session_factory)
+        budget = BudgetService(audit_service, cap_usd=s.daily_budget_usd)
 
         llm = build_provider(s)
 
@@ -87,7 +97,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         register_vault_tools(tools, vault_svc, indexer)
         register_scheduler_tools(tools, scheduler)
 
-        agent = AgentLoop(llm=llm, tools=tools, vault=vault_svc)
+        agent = AgentLoop(
+            llm=llm,
+            tools=tools,
+            vault=vault_svc,
+            audit=audit_service,
+            budget=budget,
+        )
 
         ws_manager = ConnectionManager()
         scheduled_conv_id: str | None = None
@@ -119,6 +135,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.agent = agent
         app.state.db_engine = engine
         app.state.conversations = conv_service
+        app.state.audit = audit_service
+        app.state.budget = budget
         app.state.ws_manager = ws_manager
         app.state.scheduled_conversation_id = scheduled_conv_id  # may be None in tests
 
@@ -142,6 +160,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(conversations.router)
     app.include_router(chat.router)
     app.include_router(scheduler_api.router)
+    app.include_router(audit_api.router)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
