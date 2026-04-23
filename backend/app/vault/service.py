@@ -5,6 +5,7 @@ from typing import Literal
 from git import Actor, Repo
 from git.exc import InvalidGitRepositoryError, NoSuchPathError
 
+from app.indexer import Indexer
 from app.vault.paths import safe_resolve
 
 ActorName = Literal["user", "agent", "system"]
@@ -42,8 +43,9 @@ class VaultEntry:
 
 
 class VaultService:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, indexer: Indexer | None = None):
         self.root = Path(root)
+        self.indexer = indexer
 
     def bootstrap(self) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
@@ -137,3 +139,5 @@ class VaultService:
             author=author,
             committer=author,
         )
+        if self.indexer and target.suffix == ".md":
+            self.indexer.upsert(rel, target.read_text())
