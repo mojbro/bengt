@@ -45,6 +45,21 @@ type WriteArgs = {
   expected_modified_at?: string | null
 }
 
+export function useDeleteFile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (path: string) =>
+      apiFetch(`/vault/file?path=${encodeURIComponent(path)}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: (_, path) => {
+      qc.invalidateQueries({ queryKey: ['vault', 'tree'] })
+      qc.removeQueries({ queryKey: ['vault', 'file', path] })
+    },
+  })
+}
+
+
 export function useWriteFile() {
   const qc = useQueryClient()
   return useMutation({

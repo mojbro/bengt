@@ -27,7 +27,11 @@ export default function VaultPage() {
         } overflow-hidden min-h-0`}
       >
         {selected ? (
-          <Editor path={selected} onBack={() => setSelected(null)} />
+          <Editor
+            path={selected}
+            onBack={() => setSelected(null)}
+            onDeleted={() => setSelected(null)}
+          />
         ) : (
           <div className="h-full w-full flex items-center justify-center text-gray-500 text-sm p-8">
             <p>Pick a file from the tree.</p>

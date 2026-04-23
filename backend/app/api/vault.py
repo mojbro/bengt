@@ -72,6 +72,17 @@ def read_file(path: str, vault: VaultService = Depends(get_vault)) -> FileConten
     return FileContent(path=path, content=content, modified_at=_mtime_utc(target))
 
 
+@router.delete("/file", status_code=status.HTTP_204_NO_CONTENT)
+def delete_file(
+    path: str,
+    vault: VaultService = Depends(get_vault),
+) -> None:
+    try:
+        vault.delete(path, actor="user")
+    except (PathSafetyError, NotFoundError, VaultError) as exc:
+        raise _map_vault_error(exc) from exc
+
+
 @router.put("/file", response_model=FileContent)
 def write_file(
     path: str,
