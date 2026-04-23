@@ -1,5 +1,7 @@
+import { Plus } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
+import FAB from '../components/FAB'
 import { useLogout } from '../hooks/useAuth'
 import {
   useConversations,
@@ -26,21 +28,15 @@ export default function Home() {
   const navigate = useNavigate()
 
   async function startNew() {
+    if (createConv.isPending) return
     const conv = await createConv.mutateAsync('New thread')
     navigate(`/conversations/${conv.id}`)
   }
 
   return (
     <div className="h-full overflow-auto bg-white">
-      <header className="border-b px-4 md:px-6 py-4 sticky top-0 bg-white z-10 flex items-center justify-between gap-3">
+      <header className="border-b px-4 md:px-6 py-4 sticky top-0 bg-white z-10">
         <h1 className="text-xl font-semibold">Chat</h1>
-        <button
-          onClick={startNew}
-          disabled={createConv.isPending}
-          className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-3 py-1.5 disabled:opacity-50 transition"
-        >
-          {createConv.isPending ? 'Creating…' : '+ New'}
-        </button>
       </header>
 
       {conversations.isLoading && (
@@ -54,8 +50,9 @@ export default function Home() {
         </p>
       )}
       {conversations.data?.length === 0 && (
-        <div className="px-4 py-8 text-center text-sm text-gray-500">
-          No conversations yet. Tap <strong>+ New</strong> to start one.
+        <div className="px-4 py-16 text-center text-gray-500">
+          <p className="text-lg mb-1">No conversations yet.</p>
+          <p className="text-sm">Tap the + button to start one.</p>
         </div>
       )}
 
@@ -64,7 +61,7 @@ export default function Home() {
           <li key={conv.id}>
             <Link
               to={`/conversations/${conv.id}`}
-              className="block px-4 py-3 hover:bg-gray-50 active:bg-gray-100"
+              className="block px-4 md:px-6 py-3 hover:bg-gray-50 active:bg-gray-100"
             >
               <div className="font-medium truncate">{conv.title}</div>
               <div className="text-xs text-gray-500 mt-0.5">
@@ -75,7 +72,7 @@ export default function Home() {
         ))}
       </ul>
 
-      {/* Sign-out is on the sidebar for desktop; duplicate here for mobile. */}
+      {/* Sign-out is in the sidebar on desktop; surfaces here for mobile. */}
       <div className="p-4 md:hidden">
         <button
           type="button"
@@ -86,6 +83,10 @@ export default function Home() {
           {logout.isPending ? 'Signing out…' : 'Sign out'}
         </button>
       </div>
+
+      <FAB onClick={startNew} ariaLabel="New conversation">
+        <Plus size={26} />
+      </FAB>
     </div>
   )
 }
