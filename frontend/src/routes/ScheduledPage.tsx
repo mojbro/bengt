@@ -15,12 +15,11 @@ export default function ScheduledPage() {
 
   return (
     <div className="h-full overflow-auto bg-white">
-      <header className="border-b px-6 py-4">
-        <h1 className="text-xl font-medium">Scheduled jobs</h1>
+      <header className="border-b px-4 md:px-6 py-4 sticky top-0 bg-white z-10">
+        <h1 className="text-xl font-semibold">Scheduled</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Jobs are created via conversation with the agent — ask it to remind
-          you of something. Firing isn't wired up yet (that's step 14); jobs
-          persist and list here in the meantime.
+          Ask the agent to remind you of something and the reminder fires at
+          the scheduled time into the Scheduled conversation.
         </p>
       </header>
 

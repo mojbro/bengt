@@ -60,8 +60,8 @@ export default function AuditPage() {
 
   return (
     <div className="h-full overflow-auto bg-white">
-      <header className="border-b px-6 py-4">
-        <h1 className="text-xl font-medium">Audit</h1>
+      <header className="border-b px-4 md:px-6 py-4 sticky top-0 bg-white z-10">
+        <h1 className="text-xl font-semibold">Audit</h1>
         <p className="text-sm text-gray-500 mt-1">
           Every LLM call and tool invocation, newest first. Refreshes every
           10 seconds.

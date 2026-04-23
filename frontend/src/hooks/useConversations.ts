@@ -64,3 +64,18 @@ export function useDeleteConversation() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['conversations'] }),
   })
 }
+
+export function useRenameConversation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) =>
+      apiFetch<ConversationOut>(`/conversations/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ title }),
+      }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['conversations'] })
+      qc.invalidateQueries({ queryKey: ['conversations', data.id] })
+    },
+  })
+}
