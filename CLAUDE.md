@@ -47,7 +47,7 @@ docker compose up --build
 - [x] 13. Frontend: scheduled jobs view
 - [x] 14. APScheduler integration and job firing flow
 - [x] 15. Audit log + cost tracking + daily budget enforcement
-- [ ] 16. Polish: responsive mobile layout, error handling, loading states
+- [x] 16. Polish: responsive mobile layout, error handling, loading states
 
 ## Non-negotiable architectural rails (PRD §14)
 
@@ -65,7 +65,8 @@ Violate these only with explicit user sign-off in the conversation.
 - The product name `bengt` appears in a handful of user-facing strings only (HTML title, top heading, FastAPI app title, this file, PRD). Don't bake it into package names, service names, DB names, URL paths, class names, or env vars — use generic terms ("backend", "frontend", "agent").
 - Two directories — `vault/` and `data/` — are runtime state and gitignored. Docker creates them on first `up`.
 - Backend Python deps: add to `backend/pyproject.toml`, then regenerate the lock with `docker run --rm -v "$PWD/backend:/work" -w /work ghcr.io/astral-sh/uv:python3.12-bookworm-slim uv lock` (or `uv lock` locally if you have uv installed). Commit both `pyproject.toml` and `uv.lock`.
-- Run backend tests with `docker compose exec backend pytest -q` (136 tests as of step 15). Integration tests (4, opt-in) hit real OpenAI: `docker compose exec backend pytest -m integration -v`.
+- Run backend tests with `docker compose exec backend pytest -q` (139 tests as of step 16). Integration tests (4, opt-in) hit real OpenAI: `docker compose exec backend pytest -m integration -v`.
+- Vault write conflict detection: `GET /api/vault/file` returns `modified_at`; `PUT /api/vault/file` accepts optional `expected_modified_at` and returns **409** if the on-disk mtime is newer (0.5s epsilon for filesystem precision). The Editor tracks mtime, sends it on save, and on 409 shows a banner with **Reload (discard my edits)** and **Force save** (which sends no expected mtime). Prevents the agent silently overwriting user edits and vice-versa.
 - Audit + budget: every LLM call + tool invocation writes to `audit_log` (timestamp, kind, cost_usd, JSON `data`). `BudgetService` aggregates `cost_usd` for the current UTC day against `DAILY_BUDGET_USD`; `AgentLoop` checks `budget.exceeded()` before each iteration and emits `AgentError` if spent. Truncation keeps the log compact — tool arguments over 200 chars are truncated in the stored blob, result previews capped at 400. The frontend `/audit` page polls `/api/audit/recent` + `/api/audit/budget` every 10s.
 - Scheduled job firing: `app/scheduler_runner.py` holds a module-level service registry (services can't be pickled through APScheduler kwargs). `fire_scheduled_job(instruction)` is the callable added to every scheduled job — runs the agent, persists the turn to a dedicated "Scheduled" conversation (ID pinned in `data/.scheduled_conversation_id`), and broadcasts a `notification` event to all active chat WebSockets via `app.state.ws_manager`. Lifespan starts/stops the scheduler; `Settings.scheduler_autostart=False` in tests keeps jobs inert. Frontend `useChatStream` handles the notification by invalidating the conversations list and the affected thread.
 - `/api/scheduler/jobs` (GET list, DELETE cancel) is the HTTP surface over the APScheduler instance — separate from the agent-facing `schedule_job` / `list_scheduled_jobs` / `cancel_job` tools. Both manipulate the same store (`app.state.scheduler`), so what the user cancels in the UI disappears from the agent's view too.

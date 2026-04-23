@@ -11,6 +11,7 @@ export type VaultEntry = {
 export type FileContentOut = {
   path: string
   content: string
+  modified_at: string
 }
 
 export function useVaultTree(
@@ -38,13 +39,25 @@ export function useVaultFile(path: string | null) {
   })
 }
 
+type WriteArgs = {
+  path: string
+  content: string
+  expected_modified_at?: string | null
+}
+
 export function useWriteFile() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ path, content }: { path: string; content: string }) =>
+    mutationFn: ({ path, content, expected_modified_at }: WriteArgs) =>
       apiFetch<FileContentOut>(
         `/vault/file?path=${encodeURIComponent(path)}`,
-        { method: 'PUT', body: JSON.stringify({ content }) },
+        {
+          method: 'PUT',
+          body: JSON.stringify({
+            content,
+            expected_modified_at: expected_modified_at ?? null,
+          }),
+        },
       ),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['vault', 'file', vars.path] })

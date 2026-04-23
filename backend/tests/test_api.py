@@ -131,6 +131,66 @@ def test_vault_write_rejects_traversal(authed_client):
     assert r.status_code == 400
 
 
+def test_vault_read_returns_mtime(authed_client):
+    r = authed_client.get("/api/vault/file", params={"path": "todos.md"})
+    assert r.status_code == 200
+    assert "modified_at" in r.json()
+
+
+def test_vault_write_conflict_when_file_changed(authed_client):
+    import time
+
+    authed_client.put(
+        "/api/vault/file",
+        params={"path": "notes/conflict.md"},
+        json={"content": "original"},
+    )
+    first = authed_client.get(
+        "/api/vault/file", params={"path": "notes/conflict.md"}
+    ).json()
+
+    time.sleep(1.1)  # push mtime past the 0.5s epsilon
+    authed_client.put(
+        "/api/vault/file",
+        params={"path": "notes/conflict.md"},
+        json={"content": "agent wrote this"},
+    )
+
+    conflict = authed_client.put(
+        "/api/vault/file",
+        params={"path": "notes/conflict.md"},
+        json={
+            "content": "user overwrite attempt",
+            "expected_modified_at": first["modified_at"],
+        },
+    )
+    assert conflict.status_code == 409
+    after = authed_client.get(
+        "/api/vault/file", params={"path": "notes/conflict.md"}
+    ).json()
+    assert after["content"] == "agent wrote this"
+
+
+def test_vault_write_succeeds_with_fresh_mtime(authed_client):
+    authed_client.put(
+        "/api/vault/file",
+        params={"path": "notes/fresh.md"},
+        json={"content": "hello"},
+    )
+    current = authed_client.get(
+        "/api/vault/file", params={"path": "notes/fresh.md"}
+    ).json()
+    r = authed_client.put(
+        "/api/vault/file",
+        params={"path": "notes/fresh.md"},
+        json={
+            "content": "hello v2",
+            "expected_modified_at": current["modified_at"],
+        },
+    )
+    assert r.status_code == 200
+
+
 # -------------------- conversations
 
 
