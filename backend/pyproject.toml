@@ -10,11 +10,13 @@ dependencies = [
     "pydantic-settings>=2.6",
     "gitpython>=3.1.43",
     "chromadb>=0.5",
+    "openai>=1.55",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.3",
+    "pytest-asyncio>=0.24",
 ]
 
 [build-system]
@@ -26,3 +28,9 @@ include = ["app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: real external API call; opt in via 'pytest -m integration'",
+]
+# Default run skips integration tests. Override with `pytest -m integration`.
+addopts = ["-m", "not integration"]

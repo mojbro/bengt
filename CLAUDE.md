@@ -35,7 +35,7 @@ docker compose up --build
 - [x] 1. Project scaffold (Docker Compose, FastAPI skeleton, Vite skeleton)
 - [x] 2. Vault service (read/write/list, Git auto-commit, path safety)
 - [x] 3. ChromaDB indexer
-- [ ] 4. LLM abstraction + one provider (OpenAI)
+- [x] 4. LLM abstraction + one provider (OpenAI)
 - [ ] 5. Agent loop with tool calling (mock tools first)
 - [ ] 6. Real tool implementations (vault tools, scheduling tools)
 - [ ] 7. Conversation persistence and retrieval (multiple threads)
@@ -65,5 +65,6 @@ Violate these only with explicit user sign-off in the conversation.
 - The product name `bengt` appears in a handful of user-facing strings only (HTML title, top heading, FastAPI app title, this file, PRD). Don't bake it into package names, service names, DB names, URL paths, class names, or env vars — use generic terms ("backend", "frontend", "agent").
 - Two directories — `vault/` and `data/` — are runtime state and gitignored. Docker creates them on first `up`.
 - Backend Python deps: add to `backend/pyproject.toml`, then regenerate the lock with `docker run --rm -v "$PWD/backend:/work" -w /work ghcr.io/astral-sh/uv:python3.12-bookworm-slim uv lock` (or `uv lock` locally if you have uv installed). Commit both `pyproject.toml` and `uv.lock`.
-- Run backend tests with `docker compose exec backend pytest -q` (28 tests as of step 3).
+- Run backend tests with `docker compose exec backend pytest -q` (38 tests as of step 4).
+- The LLM layer (`app/llm/`) is provider-agnostic by design. `LLMProvider` is a Protocol; `OpenAIProvider` is the current impl; Ollama slots in without touching call sites. All wire-format translation stays inside each provider's file — nothing OpenAI-specific leaks through the Protocol. Adding a new provider: add a class with `.name`, `.model`, `.stream(...)`, and a branch in `factory.build_provider`. Add its pricing to `app/llm/pricing.py` when known.
 - Semantic search uses ChromaDB's default (local, ONNX-based) embeddings — no cloud calls for search. The model downloads on first use and caches in the container; persists as long as the container isn't recreated. Chroma data lives at `data/chroma/` (gitignored).
