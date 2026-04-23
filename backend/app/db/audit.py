@@ -84,13 +84,17 @@ class AuditService:
             session.refresh(entry)
             return entry
 
-    def recent(self, limit: int = 100) -> list[AuditEntry]:
+    def recent(
+        self,
+        limit: int = 100,
+        conversation_id: str | None = None,
+    ) -> list[AuditEntry]:
         with self._factory() as session:
-            rows = session.execute(
-                select(AuditEntry)
-                .order_by(AuditEntry.timestamp.desc())
-                .limit(limit)
-            ).scalars().all()
+            stmt = select(AuditEntry).order_by(AuditEntry.timestamp.desc())
+            if conversation_id is not None:
+                stmt = stmt.where(AuditEntry.conversation_id == conversation_id)
+            stmt = stmt.limit(limit)
+            rows = session.execute(stmt).scalars().all()
             return list(rows)
 
     def cost_today_utc(self) -> float:

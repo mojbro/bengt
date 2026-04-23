@@ -41,6 +41,7 @@ def get_budget(request: Request):
 @router.get("/recent", response_model=list[AuditEntryOut])
 def recent(
     limit: int = 100,
+    conversation_id: str | None = None,
     audit: AuditService = Depends(get_audit),
 ) -> list[AuditEntryOut]:
     limit = max(1, min(limit, 500))
@@ -53,7 +54,7 @@ def recent(
             cost_usd=e.cost_usd,
             data=e.data or {},
         )
-        for e in audit.recent(limit=limit)
+        for e in audit.recent(limit=limit, conversation_id=conversation_id)
     ]
 
 

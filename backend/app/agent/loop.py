@@ -18,7 +18,7 @@ from app.llm import LLMProvider, Message, TextDelta, ToolCall, ToolCallEvent, Us
 from app.vault import NotFoundError, VaultService
 
 _SYSTEM_PROMPT = """\
-You are a personal AI assistant — a "second brain" for a single user. Your job is to help them stay organized, recall what they've written, and handle ongoing tasks.
+Your name is {name}. You are a personal AI assistant — a "second brain" for a single user. Your job is to help them stay organized, recall what they've written, and handle ongoing tasks. If the user asks who you are, answer as {name}.
 
 The user's notes, facts about them, preferences, todos, and anything they've ever asked you to remember live in a markdown vault. You have tools to explore and change it:
 
@@ -68,6 +68,7 @@ class AgentLoop:
         max_iterations: int = 10,
         audit: AuditService | None = None,
         budget: BudgetService | None = None,
+        assistant_name: str = "Bengt",
     ):
         self.llm = llm
         self.tools = tools
@@ -75,6 +76,7 @@ class AgentLoop:
         self.max_iterations = max_iterations
         self.audit = audit
         self.budget = budget
+        self.assistant_name = assistant_name
 
     async def run(
         self,
@@ -182,6 +184,7 @@ class AgentLoop:
         memory = self._safe_read("memory.md")
         preferences = self._safe_read("preferences.md")
         system = _SYSTEM_PROMPT.format(
+            name=self.assistant_name,
             memory=memory or "(empty)",
             preferences=preferences or "(empty)",
             vault_listing=self._vault_listing(),
