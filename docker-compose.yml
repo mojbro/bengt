@@ -13,6 +13,7 @@ services:
       - ${VAULT_HOST_PATH:-./vault}:/app/vault
       - ./data:/app/data
     command: uvicorn app.main:app --host 0.0.0.0 --port 3501 --reload
+    restart: unless-stopped
 
   frontend:
     build:
@@ -26,3 +27,4 @@ services:
     command: npm run dev -- --host 0.0.0.0
     depends_on:
       - backend
+    restart: unless-stopped
