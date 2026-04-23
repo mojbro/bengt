@@ -12,6 +12,7 @@ dependencies = [
     "chromadb>=0.5",
     "openai>=1.55",
     "apscheduler>=3.10,<4.0",
+    "sqlalchemy>=2.0",
 ]
 
 [dependency-groups]
