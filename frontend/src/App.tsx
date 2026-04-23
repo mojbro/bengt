@@ -5,6 +5,7 @@ import AppShell from './routes/AppShell'
 import ConversationPage from './routes/ConversationPage'
 import Home from './routes/Home'
 import LoginPage from './routes/LoginPage'
+import ScheduledPage from './routes/ScheduledPage'
 import VaultPage from './routes/VaultPage'
 
 const router = createBrowserRouter([
@@ -19,6 +20,7 @@ const router = createBrowserRouter([
           { index: true, element: <Home /> },
           { path: 'conversations/:id', element: <ConversationPage /> },
           { path: 'files', element: <VaultPage /> },
+          { path: 'scheduled', element: <ScheduledPage /> },
         ],
       },
     ],
