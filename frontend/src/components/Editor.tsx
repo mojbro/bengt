@@ -189,7 +189,7 @@ export default function Editor({ path, onBack }: Props) {
           setContent(e.target.value)
           setDirty(true)
         }}
-        className="flex-1 min-h-0 resize-none outline-none p-4 font-mono text-sm leading-relaxed"
+        className="flex-1 min-h-0 resize-none outline-none p-4 font-mono text-base md:text-sm leading-relaxed"
         spellCheck={false}
       />
     </div>
