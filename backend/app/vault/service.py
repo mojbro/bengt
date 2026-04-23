@@ -123,6 +123,25 @@ class VaultService:
             f.write(content)
         self._commit(target, "append", actor)
 
+    def delete(self, path: str, actor: ActorName = "user") -> None:
+        target = safe_resolve(self.root, path)
+        if not target.exists() or not target.is_file():
+            raise NotFoundError(path)
+        repo = self._ensure_repo()
+        rel = target.relative_to(self.root.resolve()).as_posix()
+        # `git rm` both removes from the working tree and stages the delete.
+        repo.git.rm(rel)
+        author = _ACTORS[actor]
+        repo.index.commit(
+            f"{actor}: delete {rel}",
+            author=author,
+            committer=author,
+        )
+        # Keep the semantic index in sync — only markdown files ever
+        # landed there, so the cleanup is a no-op for other file types.
+        if self.indexer and target.suffix == ".md":
+            self.indexer.remove(rel)
+
     def _ensure_repo(self) -> Repo:
         try:
             return Repo(self.root)

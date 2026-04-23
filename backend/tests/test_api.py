@@ -137,6 +137,35 @@ def test_vault_read_returns_mtime(authed_client):
     assert "modified_at" in r.json()
 
 
+def test_vault_delete_removes_file(authed_client):
+    authed_client.put(
+        "/api/vault/file",
+        params={"path": "notes/to-delete.md"},
+        json={"content": "bye"},
+    )
+    assert authed_client.get(
+        "/api/vault/file", params={"path": "notes/to-delete.md"}
+    ).status_code == 200
+
+    r = authed_client.delete("/api/vault/file", params={"path": "notes/to-delete.md"})
+    assert r.status_code == 204
+
+    # File is now gone.
+    assert authed_client.get(
+        "/api/vault/file", params={"path": "notes/to-delete.md"}
+    ).status_code == 404
+
+
+def test_vault_delete_missing_is_404(authed_client):
+    r = authed_client.delete("/api/vault/file", params={"path": "nope.md"})
+    assert r.status_code == 404
+
+
+def test_vault_delete_rejects_traversal(authed_client):
+    r = authed_client.delete("/api/vault/file", params={"path": "../escape.md"})
+    assert r.status_code == 400
+
+
 def test_vault_write_conflict_when_file_changed(authed_client):
     import time
 

@@ -96,3 +96,35 @@ def test_list_subdirectory(vault: VaultService):
 def test_path_safety_in_write(vault: VaultService):
     with pytest.raises(PathSafetyError):
         vault.write("../escape.md", "x")
+
+
+def test_delete_removes_file_and_commits(vault: VaultService):
+    vault.write("notes/doomed.md", "goodbye\n", actor="user")
+    assert (vault.root / "notes/doomed.md").exists()
+
+    vault.delete("notes/doomed.md", actor="user")
+    assert not (vault.root / "notes/doomed.md").exists()
+
+    latest = next(Repo(vault.root).iter_commits())
+    assert "user: delete notes/doomed.md" in latest.message
+    assert latest.author.name == "user"
+
+
+def test_delete_missing_raises(vault: VaultService):
+    with pytest.raises(NotFoundError):
+        vault.delete("notes/never-existed.md")
+
+
+def test_delete_path_safety(vault: VaultService):
+    with pytest.raises(PathSafetyError):
+        vault.delete("../outside.md")
+
+
+def test_delete_removes_from_index(indexed_vault: VaultService, indexer):
+    indexed_vault.write("notes/searchable.md", "unique phrase xyz", actor="user")
+    hits = indexer.search("unique phrase xyz")
+    assert any(h.path == "notes/searchable.md" for h in hits)
+
+    indexed_vault.delete("notes/searchable.md")
+    hits = indexer.search("unique phrase xyz")
+    assert all(h.path != "notes/searchable.md" for h in hits)

@@ -2,15 +2,16 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ApiError } from '../api/client'
-import { useVaultFile, useWriteFile } from '../hooks/useVault'
+import { useDeleteFile, useVaultFile, useWriteFile } from '../hooks/useVault'
 
-type Props = { path: string; onBack?: () => void }
+type Props = { path: string; onBack?: () => void; onDeleted?: () => void }
 
 const AUTOSAVE_DELAY_MS = 2000
 
-export default function Editor({ path, onBack }: Props) {
+export default function Editor({ path, onBack, onDeleted }: Props) {
   const { data, isLoading, error } = useVaultFile(path)
   const writeFile = useWriteFile()
+  const deleteFile = useDeleteFile()
   const queryClient = useQueryClient()
 
   const [content, setContent] = useState('')
@@ -143,6 +144,31 @@ export default function Editor({ path, onBack }: Props) {
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
           <span className={`text-xs ${statusClass}`}>{statusLabel}</span>
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                window.confirm(
+                  `Delete ${path}?\n\nThe file will be removed from the vault. Git history still has it if you need to recover.`,
+                )
+              ) {
+                deleteFile.mutate(path, {
+                  onSuccess: () => {
+                    onDeleted?.()
+                  },
+                  onError: (err) => {
+                    setSaveError(
+                      err instanceof Error ? err.message : 'Delete failed.',
+                    )
+                  },
+                })
+              }
+            }}
+            disabled={deleteFile.isPending}
+            className="text-xs text-red-600 hover:underline disabled:opacity-40"
+          >
+            {deleteFile.isPending ? 'Deleting…' : 'Delete'}
+          </button>
           <button
             type="button"
             onClick={save}

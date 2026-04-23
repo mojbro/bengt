@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import { useChatStream } from '../hooks/useChatStream'
-import { useConversation, type MessageOut } from '../hooks/useConversations'
+import {
+  useConversation,
+  useDeleteConversation,
+  type MessageOut,
+} from '../hooks/useConversations'
 
 import ChatInput from './ChatInput'
 import MessageBubble from './MessageBubble'
@@ -12,6 +17,8 @@ type Props = { conversationId: string }
 export default function ChatView({ conversationId }: Props) {
   const { data: conversation, isLoading, error: loadError } = useConversation(conversationId)
   const { streaming, error: streamError, connected, send } = useChatStream(conversationId)
+  const deleteConv = useDeleteConversation()
+  const navigate = useNavigate()
   const endRef = useRef<HTMLDivElement>(null)
 
   const toolResultsById = useMemo(() => {
@@ -46,10 +53,31 @@ export default function ChatView({ conversationId }: Props) {
 
   const isStreaming = streaming !== null
 
+  function handleDelete() {
+    if (!conversation) return
+    if (
+      window.confirm(
+        `Delete "${conversation.title}"?\n\nThis removes the conversation and all its messages. It cannot be undone.`,
+      )
+    ) {
+      deleteConv.mutate(conversationId, {
+        onSuccess: () => navigate('/'),
+      })
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
-      <header className="border-b px-4 py-3">
+      <header className="border-b px-4 py-3 flex items-center justify-between gap-3">
         <h2 className="font-medium truncate">{conversation.title}</h2>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleteConv.isPending}
+          className="text-xs text-red-600 hover:underline disabled:opacity-40 flex-shrink-0"
+        >
+          {deleteConv.isPending ? 'Deleting…' : 'Delete'}
+        </button>
       </header>
 
       <div className="flex-1 overflow-auto px-4 py-4 space-y-4 bg-white">
