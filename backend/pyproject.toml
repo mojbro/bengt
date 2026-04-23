@@ -13,6 +13,8 @@ dependencies = [
     "openai>=1.55",
     "apscheduler>=3.10,<4.0",
     "sqlalchemy>=2.0",
+    "itsdangerous>=2.2",
+    "httpx>=0.27",
 ]
 
 [dependency-groups]
