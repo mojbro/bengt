@@ -12,6 +12,39 @@ class SearchHit:
     distance: float
 
 
+# Chunk large .md files before embedding. Paragraphs are the natural unit;
+# we greedily group paragraphs up to MAX_CHUNK_CHARS so small notes stay
+# one chunk and large docs (uploaded PDFs etc.) are searchable paragraph
+# by paragraph.
+MAX_CHUNK_CHARS = 1500
+
+
+def chunk_text(text: str, max_chars: int = MAX_CHUNK_CHARS) -> list[str]:
+    text = text.strip()
+    if not text:
+        return []
+    if len(text) <= max_chars:
+        return [text]
+
+    chunks: list[str] = []
+    current = ""
+    for paragraph in text.split("\n\n"):
+        p = paragraph.strip()
+        if not p:
+            continue
+        if not current:
+            current = p
+            continue
+        if len(current) + len(p) + 2 > max_chars:
+            chunks.append(current)
+            current = p
+        else:
+            current = f"{current}\n\n{p}"
+    if current:
+        chunks.append(current)
+    return chunks
+
+
 class Indexer:
     def __init__(self, db_path: Path, collection_name: str = "vault"):
         self.db_path = Path(db_path)
@@ -26,14 +59,23 @@ class Indexer:
         if not content.strip():
             self.remove(path)
             return
-        self._collection.upsert(
-            ids=[path],
-            documents=[content],
-            metadatas=[{"path": path}],
-        )
+        chunks = chunk_text(content)
+        if not chunks:
+            self.remove(path)
+            return
+        # Drop any previous chunks for this path. Delete by metadata so the
+        # old chunk count doesn't have to match the new one.
+        self._delete_by_path(path)
+        ids = [f"{path}#{i}" for i in range(len(chunks))]
+        metadatas = [{"path": path, "chunk": i} for i in range(len(chunks))]
+        self._collection.upsert(ids=ids, documents=chunks, metadatas=metadatas)
 
     def remove(self, path: str) -> None:
-        self._collection.delete(ids=[path])
+        self._delete_by_path(path)
+
+    def _delete_by_path(self, path: str) -> None:
+        # Chroma expects a dict-ish where clause.
+        self._collection.delete(where={"path": path})
 
     def search(self, query: str, limit: int = 5) -> list[SearchHit]:
         if limit <= 0 or self._collection.count() == 0:
@@ -42,13 +84,14 @@ class Indexer:
             query_texts=[query],
             n_results=min(limit, self._collection.count()),
         )
-        ids = (results.get("ids") or [[]])[0]
         docs = (results.get("documents") or [[]])[0]
         distances = (results.get("distances") or [[]])[0]
+        metadatas = (results.get("metadatas") or [[]])[0]
         hits: list[SearchHit] = []
-        for doc_id, doc, dist in zip(ids, docs, distances):
+        for doc, dist, meta in zip(docs, distances, metadatas):
+            path = str((meta or {}).get("path", ""))
             snippet = (doc or "")[:200]
-            hits.append(SearchHit(path=doc_id, snippet=snippet, distance=float(dist)))
+            hits.append(SearchHit(path=path, snippet=snippet, distance=float(dist)))
         return hits
 
     def reindex_all(self, vault_root: Path) -> None:
