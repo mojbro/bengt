@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     daily_budget_usd: float = 5.0
     auth_password: str = ""
     vault_path: str = "/app/vault"
+    data_path: str = "/app/data"
     inbox_scan_interval_minutes: int = 15
 
 
