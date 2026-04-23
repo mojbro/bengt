@@ -7,25 +7,30 @@ export default function VaultPage() {
   const [selected, setSelected] = useState<string | null>(null)
 
   return (
-    <div className="flex h-full">
-      <aside className="w-64 border-r bg-gray-50 overflow-auto py-2">
+    <div className="h-full flex flex-col md:flex-row">
+      {/* Tree: full height on desktop, hidden on mobile when a file is open. */}
+      <aside
+        className={`${
+          selected ? 'hidden md:block' : 'block'
+        } md:w-64 md:border-r md:flex-shrink-0 bg-gray-50 overflow-auto py-2 md:h-full`}
+      >
         <div className="px-3 pb-2 text-xs uppercase tracking-wide text-gray-400">
           Vault
         </div>
         <VaultTree selectedPath={selected} onSelect={setSelected} />
       </aside>
-      <div className="flex-1 overflow-hidden">
+
+      {/* Editor pane. Hidden on mobile until a file is picked. */}
+      <div
+        className={`${
+          selected ? 'flex flex-1' : 'hidden md:flex md:flex-1'
+        } overflow-hidden min-h-0`}
+      >
         {selected ? (
-          <Editor path={selected} />
+          <Editor path={selected} onBack={() => setSelected(null)} />
         ) : (
-          <div className="h-full flex items-center justify-center text-gray-500 text-sm p-8">
-            <div className="text-center max-w-sm">
-              <p className="mb-1">Pick a file from the tree to edit it.</p>
-              <p className="text-xs text-gray-400">
-                New files are created by the agent or via chat; in-UI file
-                creation lands later.
-              </p>
-            </div>
+          <div className="h-full w-full flex items-center justify-center text-gray-500 text-sm p-8">
+            <p>Pick a file from the tree.</p>
           </div>
         )}
       </div>

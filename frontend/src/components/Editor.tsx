@@ -2,11 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useVaultFile, useWriteFile } from '../hooks/useVault'
 
-type Props = { path: string }
+type Props = { path: string; onBack?: () => void }
 
 const AUTOSAVE_DELAY_MS = 2000
 
-export default function Editor({ path }: Props) {
+export default function Editor({ path, onBack }: Props) {
   const { data, isLoading, error } = useVaultFile(path)
   const writeFile = useWriteFile()
 
@@ -77,10 +77,22 @@ export default function Editor({ path }: Props) {
       : 'Saved'
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      <header className="border-b px-4 py-2 flex items-center justify-between">
-        <div className="font-mono text-sm truncate">{path}</div>
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col h-full w-full bg-white">
+      <header className="border-b px-4 py-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="md:hidden text-gray-500 hover:text-black px-1 text-base"
+              aria-label="Back to tree"
+            >
+              ←
+            </button>
+          )}
+          <div className="font-mono text-sm truncate">{path}</div>
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
           <span
             className={`text-xs ${
               dirty ? 'text-orange-600' : 'text-gray-400'
@@ -110,7 +122,7 @@ export default function Editor({ path }: Props) {
           setContent(e.target.value)
           setDirty(true)
         }}
-        className="flex-1 resize-none outline-none p-4 font-mono text-sm leading-relaxed"
+        className="flex-1 min-h-0 resize-none outline-none p-4 font-mono text-sm leading-relaxed"
         spellCheck={false}
       />
     </div>
