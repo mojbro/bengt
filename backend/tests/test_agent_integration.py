@@ -15,7 +15,9 @@ from app.agent import (
     ToolRegistry,
     register_mock_tools,
 )
+from app.agent.vault_tools import register_vault_tools
 from app.config import Settings
+from app.indexer import Indexer
 from app.llm import build_provider
 from app.vault import VaultService
 
@@ -54,3 +56,37 @@ async def test_agent_uses_add_tool_end_to_end(vault: VaultService):
 
     text = "".join(e.text for e in events if isinstance(e, AgentText))
     assert "15" in text, f"expected '15' in final text; got: {text!r}"
+
+
+async def test_agent_answers_from_vault(tmp_path):
+    """End-to-end: seed a note, ask about it, verify agent retrieves and answers."""
+    indexer = Indexer(db_path=tmp_path / "chroma")
+    vault = VaultService(tmp_path / "vault", indexer=indexer)
+    vault.bootstrap()
+    vault.write(
+        "notes/volvo.md",
+        "Meeting with Volvo on Friday at 10:00 about the contract renewal.",
+        actor="user",
+    )
+
+    llm = build_provider(Settings())
+    tools = ToolRegistry()
+    register_vault_tools(tools, vault, indexer)
+    agent = AgentLoop(llm=llm, tools=tools, vault=vault)
+
+    events = []
+    async for event in agent.run(
+        "When is my Volvo meeting? Use the vault to find out."
+    ):
+        events.append(event)
+
+    starts = [e for e in events if isinstance(e, AgentToolStart)]
+    used_tools = {s.name for s in starts}
+    assert used_tools & {"search_vault", "read_file", "list_vault"}, (
+        f"expected the agent to reach into the vault; used: {used_tools}"
+    )
+
+    text = "".join(e.text for e in events if isinstance(e, AgentText))
+    assert "Friday" in text or "10" in text, (
+        f"expected the answer to mention the time/day; got: {text!r}"
+    )
