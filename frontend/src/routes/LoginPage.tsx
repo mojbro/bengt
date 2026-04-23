@@ -52,7 +52,7 @@ export default function LoginPage() {
             autoFocus
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/20"
+            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/20 text-base md:text-sm"
             autoComplete="current-password"
           />
         </div>
