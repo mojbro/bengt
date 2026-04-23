@@ -49,6 +49,24 @@ class Message(Base):
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
 
 
+class AuditEntry(Base):
+    """One row per LLM call or tool invocation.
+
+    The `data` JSON blob holds kind-specific fields (model/tokens for LLM
+    calls, name/arguments/result_preview for tools) so we can grow the
+    schema without migrations.
+    """
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[str] = mapped_column(primary_key=True)
+    timestamp: Mapped[datetime] = mapped_column(default=_now, index=True)
+    kind: Mapped[str]  # "llm_call" | "tool_invocation"
+    conversation_id: Mapped[str | None] = mapped_column(default=None)
+    cost_usd: Mapped[float] = mapped_column(default=0.0)
+    data: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
 # SQLite needs this pragma each connection for ON DELETE CASCADE to fire.
 @event.listens_for(Engine, "connect")
 def _enable_sqlite_foreign_keys(dbapi_connection, _):

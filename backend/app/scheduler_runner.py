@@ -61,7 +61,9 @@ async def fire_scheduled_job(instruction: str) -> None:
     svc.conversations.append_message(conv_id, "user", framed)
 
     try:
-        async for event in svc.agent.run(framed, history=history):
+        async for event in svc.agent.run(
+            framed, history=history, conversation_id=conv_id
+        ):
             if isinstance(event, AgentTurnEnd):
                 if event.text or event.tool_calls:
                     svc.conversations.append_message(
