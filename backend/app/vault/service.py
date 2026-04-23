@@ -95,6 +95,17 @@ class VaultService:
         target.write_text(content)
         self._commit(target, "write", actor)
 
+    def write_bytes(
+        self, path: str, content: bytes, actor: ActorName = "user"
+    ) -> None:
+        """Write raw bytes (e.g. an uploaded PDF). Commits to git like any
+        other write but skips the ChromaDB index step since non-text content
+        isn't searchable."""
+        target = safe_resolve(self.root, path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+        self._commit(target, "write", actor)
+
     def edit(
         self,
         path: str,

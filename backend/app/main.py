@@ -19,6 +19,7 @@ from app.api import (
     conversations,
     scheduler as scheduler_api,
     todos as todos_api,
+    uploads as uploads_api,
     vault,
 )
 from app.budget import BudgetService
@@ -167,6 +168,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(scheduler_api.router)
     app.include_router(audit_api.router)
     app.include_router(todos_api.router)
+    app.include_router(uploads_api.router)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
