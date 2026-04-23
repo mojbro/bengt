@@ -4,11 +4,13 @@ All writes use actor="agent" so the vault's git history attributes the
 change correctly and the audit trail is honest.
 """
 
+from datetime import date
 from typing import Any
 
 from app.agent.tools import Tool, ToolRegistry
 from app.indexer import Indexer
-from app.vault import VaultService
+from app.vault import NotFoundError, VaultService
+from app.vault.todos import parse_todos
 
 
 def register_vault_tools(
@@ -55,6 +57,46 @@ def register_vault_tools(
         path = str(args["path"])
         vault.append(path, str(args["content"]), actor="agent")
         return f"appended to {path}"
+
+    async def list_todos(args: dict[str, Any]) -> str:
+        filter_ = str(args.get("filter", "") or "").strip().lower()
+        try:
+            content = vault.read("todos.md")
+        except NotFoundError:
+            return "(no todos.md yet)"
+        todos = parse_todos(content)
+        today = date.today()
+
+        def keep(t) -> bool:
+            if filter_ in ("", "all"):
+                return True
+            if filter_ == "open":
+                return not t.done
+            if filter_ == "done":
+                return t.done
+            if filter_ == "today":
+                return not t.done and t.due == today
+            if filter_ == "overdue":
+                return not t.done and t.due is not None and t.due < today
+            if filter_ == "upcoming":
+                return not t.done and t.due is not None and t.due >= today
+            # Unknown filter — show all.
+            return True
+
+        filtered = [t for t in todos if keep(t)]
+        if not filtered:
+            return "(no todos match)"
+        lines: list[str] = []
+        for t in filtered:
+            parts = ["[x]" if t.done else "[ ]", t.text]
+            if t.due:
+                parts.append(f"📅 {t.due.isoformat()}")
+            if t.priority:
+                parts.append(f"({t.priority})")
+            if t.tags:
+                parts.append(" ".join(f"#{x}" for x in t.tags))
+            lines.append(" ".join(parts))
+        return "\n".join(lines)
 
     registry.register(
         Tool(
@@ -151,6 +193,30 @@ def register_vault_tools(
                 "required": ["path", "old_string", "new_string"],
             },
             fn=edit_file,
+        )
+    )
+    registry.register(
+        Tool(
+            name="list_todos",
+            description=(
+                "List structured todos from todos.md with optional filter. "
+                "Filter values: 'all' (default), 'open', 'done', 'today' "
+                "(open and due today), 'overdue' (open and due before today), "
+                "'upcoming' (open and due today-or-later). Prefer this over "
+                "read_file for answering 'what do I need to do?' questions — "
+                "it parses dates and priorities."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "filter": {
+                        "type": "string",
+                        "enum": ["all", "open", "done", "today", "overdue", "upcoming"],
+                        "description": "Filter which todos to show.",
+                    },
+                },
+            },
+            fn=list_todos,
         )
     )
     registry.register(

@@ -31,13 +31,13 @@ export default function ChatInput({ disabled, onSend, placeholder }: Props) {
         onKeyDown={onKeyDown}
         placeholder={placeholder ?? 'Send a message…'}
         rows={2}
-        className="flex-1 border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-black/20 text-base md:text-sm"
+        className="flex-1 border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/40 text-base md:text-sm"
       />
       <button
         type="button"
         onClick={submit}
         disabled={disabled || !text.trim()}
-        className="bg-black text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+        className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50 transition"
       >
         Send
       </button>

@@ -37,7 +37,7 @@ export default function Home() {
         <button
           onClick={startNew}
           disabled={createConv.isPending}
-          className="text-sm bg-black text-white rounded px-3 py-1.5 disabled:opacity-50"
+          className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-3 py-1.5 disabled:opacity-50 transition"
         >
           {createConv.isPending ? 'Creating…' : '+ New'}
         </button>
