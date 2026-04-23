@@ -45,7 +45,7 @@ docker compose up --build
 - [x] 11. Frontend: chat view with streaming
 - [x] 12. Frontend: vault file tree + editor
 - [x] 13. Frontend: scheduled jobs view
-- [ ] 14. APScheduler integration and job firing flow
+- [x] 14. APScheduler integration and job firing flow
 - [ ] 15. Audit log + cost tracking + daily budget enforcement
 - [ ] 16. Polish: responsive mobile layout, error handling, loading states
 
@@ -65,7 +65,8 @@ Violate these only with explicit user sign-off in the conversation.
 - The product name `bengt` appears in a handful of user-facing strings only (HTML title, top heading, FastAPI app title, this file, PRD). Don't bake it into package names, service names, DB names, URL paths, class names, or env vars — use generic terms ("backend", "frontend", "agent").
 - Two directories — `vault/` and `data/` — are runtime state and gitignored. Docker creates them on first `up`.
 - Backend Python deps: add to `backend/pyproject.toml`, then regenerate the lock with `docker run --rm -v "$PWD/backend:/work" -w /work ghcr.io/astral-sh/uv:python3.12-bookworm-slim uv lock` (or `uv lock` locally if you have uv installed). Commit both `pyproject.toml` and `uv.lock`.
-- Run backend tests with `docker compose exec backend pytest -q` (119 tests as of step 13). Integration tests (4, opt-in) hit real OpenAI: `docker compose exec backend pytest -m integration -v`.
+- Run backend tests with `docker compose exec backend pytest -q` (124 tests as of step 14). Integration tests (4, opt-in) hit real OpenAI: `docker compose exec backend pytest -m integration -v`.
+- Scheduled job firing: `app/scheduler_runner.py` holds a module-level service registry (services can't be pickled through APScheduler kwargs). `fire_scheduled_job(instruction)` is the callable added to every scheduled job — runs the agent, persists the turn to a dedicated "Scheduled" conversation (ID pinned in `data/.scheduled_conversation_id`), and broadcasts a `notification` event to all active chat WebSockets via `app.state.ws_manager`. Lifespan starts/stops the scheduler; `Settings.scheduler_autostart=False` in tests keeps jobs inert. Frontend `useChatStream` handles the notification by invalidating the conversations list and the affected thread.
 - `/api/scheduler/jobs` (GET list, DELETE cancel) is the HTTP surface over the APScheduler instance — separate from the agent-facing `schedule_job` / `list_scheduled_jobs` / `cancel_job` tools. Both manipulate the same store (`app.state.scheduler`), so what the user cancels in the UI disappears from the agent's view too.
 - Streaming chat at `ws://.../api/chat/ws`. Client sends `{conversation_id, content}`, server streams `{type: text|tool_start|tool_result|usage|done|error}`. Session cookie gates the handshake (close 1008 if unauthed). `AgentLoop` now emits an internal `AgentTurnEnd(text, tool_calls)` after each LLM iteration so `chat.py` has a single persistence boundary — every agent turn and tool result lands in the `messages` table as it streams.
 - Frontend: React Router 6 + Tailwind + TanStack Query. `App.tsx` wires the router; `ProtectedRoute` guards on `GET /api/auth/me`; `AppShell` is a sidebar (conversation list, `+ New`) + main `<Outlet />`. API client at `src/api/client.ts` (`apiFetch`, `ApiError`) always sends `credentials: 'include'` so session cookies flow through the Vite dev-server proxy.

@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
-from app.scheduler import job_fire_placeholder
+from app.scheduler_runner import fire_scheduled_job
 
 
 @pytest.fixture
@@ -18,6 +18,7 @@ def settings(tmp_path):
         llm_provider="openai",
         llm_api_key="sk-test",
         llm_model="gpt-4o",
+        scheduler_autostart=False,
     )
 
 
@@ -40,7 +41,7 @@ def _seed_job(client, instruction: str = "ping"):
         run_date=datetime.now(timezone.utc) + timedelta(hours=1)
     )
     return scheduler.add_job(
-        job_fire_placeholder, trigger=trigger, kwargs={"instruction": instruction}
+        fire_scheduled_job, trigger=trigger, kwargs={"instruction": instruction}
     )
 
 

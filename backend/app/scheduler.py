@@ -1,28 +1,24 @@
-"""Scheduler lifecycle.
+"""Scheduler factory. Started by the lifespan; the actual fire callable
+lives in `app.scheduler_runner` so that module dependencies are kept tidy.
 
-Step 6 only stands this up — `create_scheduler()` returns an unstarted
-AsyncIOScheduler so the agent can add/list/cancel jobs. Step 14 adds
-`scheduler.start()` and wires job firing to invoke the agent loop.
-
-UTC throughout to keep the semantics unambiguous; the frontend formats for
-the user's local zone when displaying.
+UTC throughout so triggers are unambiguous; the frontend formats for the
+user's local zone when displaying.
 """
 
 from datetime import timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from app.scheduler_runner import fire_scheduled_job as _fire_scheduled_job
+
 
 def create_scheduler() -> AsyncIOScheduler:
     return AsyncIOScheduler(timezone=timezone.utc)
 
 
-async def job_fire_placeholder(instruction: str) -> None:
-    """Step 14 replaces this with real agent invocation.
+# Re-export so existing call sites that imported this name keep working.
+# scheduler_tools adds jobs with this as the callable.
+job_fire = _fire_scheduled_job
 
-    Kept as a module-level async callable so scheduled jobs can reference
-    it by attribute name. Never fires in step 6 because we don't start the
-    scheduler.
-    """
-    # Intentionally a no-op until step 14.
-    return None
+# Backwards-compat alias for anything still referencing the pre-step-14 name.
+job_fire_placeholder = _fire_scheduled_job

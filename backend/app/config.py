@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     vault_path: str = "/app/vault"
     data_path: str = "/app/data"
     inbox_scan_interval_minutes: int = 15
+    # Tests flip this off so APScheduler doesn't fire jobs during pytest.
+    scheduler_autostart: bool = True
 
 
 settings = Settings()

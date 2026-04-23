@@ -14,6 +14,7 @@ def settings(tmp_path):
         llm_provider="openai",
         llm_api_key="sk-test",
         llm_model="gpt-4o",
+        scheduler_autostart=False,
     )
 
 
