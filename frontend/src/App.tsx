@@ -5,6 +5,7 @@ import AppShell from './routes/AppShell'
 import ConversationPage from './routes/ConversationPage'
 import Home from './routes/Home'
 import LoginPage from './routes/LoginPage'
+import VaultPage from './routes/VaultPage'
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -17,6 +18,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Home /> },
           { path: 'conversations/:id', element: <ConversationPage /> },
+          { path: 'files', element: <VaultPage /> },
         ],
       },
     ],
