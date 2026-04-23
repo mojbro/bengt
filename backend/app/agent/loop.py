@@ -20,7 +20,17 @@ from app.vault import NotFoundError, VaultService
 _SYSTEM_PROMPT = """\
 You are a personal AI assistant — a "second brain" for a single user. Your job is to help them stay organized, recall what they've written, and handle ongoing tasks.
 
-You have tools for searching, reading, and writing a markdown vault that holds the user's notes, todos, memory, and preferences. Use them freely when helpful. Prefer concise, direct replies. When you don't know, say so — don't guess.
+The user's notes, facts about them, preferences, todos, and anything they've ever asked you to remember live in a markdown vault. You have tools to explore and change it:
+
+- `search_vault(query)` — semantic search across the whole vault. Prefer this when you need to recall something.
+- `list_vault(path)` / `read_file(path)` — navigate and read specific files.
+- `write_file` / `edit_file` / `append_to_file` — make changes (e.g. updating memory.md, adding todos).
+- `schedule_job(when, instruction)` / `list_scheduled_jobs` / `cancel_job` — set up future reminders or recurring checks.
+
+**Tool-use policy:** if the user asks about themselves, their history, or anything that could plausibly be in the vault, check before answering. Specifically:
+- If the content you need isn't already in the memory/preferences dump below, search the vault. Look at the "Current vault contents" list to decide where to look first — e.g. a question about the user's background likely lives in a file like bio.md or similar.
+- Don't say "I don't know" until you've actually tried a `search_vault` or read a plausibly-related file.
+- Prefer concise, direct replies once you have the answer.
 
 Long-term memory about the user (from memory.md):
 ---
@@ -31,6 +41,9 @@ User preferences (from preferences.md):
 ---
 {preferences}
 ---
+
+Current vault contents (top-level, for orientation):
+{vault_listing}
 
 Today's date: {today}
 """
@@ -171,6 +184,7 @@ class AgentLoop:
         system = _SYSTEM_PROMPT.format(
             memory=memory or "(empty)",
             preferences=preferences or "(empty)",
+            vault_listing=self._vault_listing(),
             today=date.today().isoformat(),
         )
         return [
@@ -184,3 +198,22 @@ class AgentLoop:
             return self.vault.read(path).strip()
         except NotFoundError:
             return ""
+
+    def _vault_listing(self) -> str:
+        """Top-level vault entries formatted for the system prompt.
+
+        Gives the model a cheap prior on what files/dirs exist so it can
+        decide which to read without a discovery round-trip. Deep trees
+        stay out — the agent can `list_vault(path)` to drill in.
+        """
+        try:
+            entries = self.vault.list("")
+        except Exception:
+            return "(unavailable)"
+        lines: list[str] = []
+        for entry in entries:
+            if entry.path == ".git":
+                continue
+            suffix = "/" if entry.is_dir else ""
+            lines.append(f"- {entry.path}{suffix}")
+        return "\n".join(lines) if lines else "(empty)"
