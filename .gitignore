@@ -1,0 +1,33 @@
+# Env
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Runtime data (per PRD §8.1) — anchored to repo root so they don't shadow
+# the in-tree `backend/app/vault/` Python package.
+/vault/
+/data/
