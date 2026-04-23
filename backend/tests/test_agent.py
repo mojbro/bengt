@@ -285,6 +285,20 @@ async def test_system_prompt_uses_custom_assistant_name(vault: VaultService):
     assert "Bengt" not in prompt
 
 
+async def test_system_prompt_tells_agent_to_save_proactively(vault: VaultService):
+    agent = AgentLoop(
+        llm=ScriptedProvider([[Usage(0, 0, None)]]),
+        tools=ToolRegistry(),
+        vault=vault,
+    )
+    prompt = agent._build_context("hi", [])[0].content
+    # Memory policy must mention destination files + concrete tool to use.
+    assert "memory.md" in prompt
+    assert "preferences.md" in prompt
+    assert "append_to_file" in prompt
+    assert "proactively" in prompt.lower() or "without being asked" in prompt.lower()
+
+
 async def test_history_threads_between_user_and_system(vault: VaultService):
     provider = ScriptedProvider([[TextDelta("k"), Usage(0, 0, None)]])
     agent = AgentLoop(llm=provider, tools=ToolRegistry(), vault=vault)
