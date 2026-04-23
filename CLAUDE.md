@@ -44,7 +44,7 @@ docker compose up --build
 - [x] 10. Frontend: auth, routing, layout
 - [x] 11. Frontend: chat view with streaming
 - [x] 12. Frontend: vault file tree + editor
-- [ ] 13. Frontend: scheduled jobs view
+- [x] 13. Frontend: scheduled jobs view
 - [ ] 14. APScheduler integration and job firing flow
 - [ ] 15. Audit log + cost tracking + daily budget enforcement
 - [ ] 16. Polish: responsive mobile layout, error handling, loading states
@@ -65,7 +65,8 @@ Violate these only with explicit user sign-off in the conversation.
 - The product name `bengt` appears in a handful of user-facing strings only (HTML title, top heading, FastAPI app title, this file, PRD). Don't bake it into package names, service names, DB names, URL paths, class names, or env vars — use generic terms ("backend", "frontend", "agent").
 - Two directories — `vault/` and `data/` — are runtime state and gitignored. Docker creates them on first `up`.
 - Backend Python deps: add to `backend/pyproject.toml`, then regenerate the lock with `docker run --rm -v "$PWD/backend:/work" -w /work ghcr.io/astral-sh/uv:python3.12-bookworm-slim uv lock` (or `uv lock` locally if you have uv installed). Commit both `pyproject.toml` and `uv.lock`.
-- Run backend tests with `docker compose exec backend pytest -q` (114 tests as of step 9). Integration tests (4, opt-in) hit real OpenAI: `docker compose exec backend pytest -m integration -v`.
+- Run backend tests with `docker compose exec backend pytest -q` (119 tests as of step 13). Integration tests (4, opt-in) hit real OpenAI: `docker compose exec backend pytest -m integration -v`.
+- `/api/scheduler/jobs` (GET list, DELETE cancel) is the HTTP surface over the APScheduler instance — separate from the agent-facing `schedule_job` / `list_scheduled_jobs` / `cancel_job` tools. Both manipulate the same store (`app.state.scheduler`), so what the user cancels in the UI disappears from the agent's view too.
 - Streaming chat at `ws://.../api/chat/ws`. Client sends `{conversation_id, content}`, server streams `{type: text|tool_start|tool_result|usage|done|error}`. Session cookie gates the handshake (close 1008 if unauthed). `AgentLoop` now emits an internal `AgentTurnEnd(text, tool_calls)` after each LLM iteration so `chat.py` has a single persistence boundary — every agent turn and tool result lands in the `messages` table as it streams.
 - Frontend: React Router 6 + Tailwind + TanStack Query. `App.tsx` wires the router; `ProtectedRoute` guards on `GET /api/auth/me`; `AppShell` is a sidebar (conversation list, `+ New`) + main `<Outlet />`. API client at `src/api/client.ts` (`apiFetch`, `ApiError`) always sends `credentials: 'include'` so session cookies flow through the Vite dev-server proxy.
 - Chat view (`src/components/ChatView.tsx`): DB-backed message history via `useConversation(id)`, live streaming via `useChatStream(id)` over the `/api/chat/ws` WebSocket (Vite proxies with `ws: true`). Optimistic user bubble lands in the query cache on send; a `done` event from the server invalidates the query to replace with real DB rows. Tool invocations render inline as small monospace boxes with live "pending" indicators while the tool is running.
