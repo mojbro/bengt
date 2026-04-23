@@ -40,7 +40,7 @@ docker compose up --build
 - [x] 6. Real tool implementations (vault tools, scheduling tools)
 - [x] 7. Conversation persistence and retrieval (multiple threads)
 - [x] 8. REST API surface (auth, vault CRUD, conversations)
-- [ ] 9. WebSocket for streaming chat
+- [x] 9. WebSocket for streaming chat
 - [ ] 10. Frontend: auth, routing, layout
 - [ ] 11. Frontend: chat view with streaming
 - [ ] 12. Frontend: vault file tree + editor
@@ -65,7 +65,8 @@ Violate these only with explicit user sign-off in the conversation.
 - The product name `bengt` appears in a handful of user-facing strings only (HTML title, top heading, FastAPI app title, this file, PRD). Don't bake it into package names, service names, DB names, URL paths, class names, or env vars — use generic terms ("backend", "frontend", "agent").
 - Two directories — `vault/` and `data/` — are runtime state and gitignored. Docker creates them on first `up`.
 - Backend Python deps: add to `backend/pyproject.toml`, then regenerate the lock with `docker run --rm -v "$PWD/backend:/work" -w /work ghcr.io/astral-sh/uv:python3.12-bookworm-slim uv lock` (or `uv lock` locally if you have uv installed). Commit both `pyproject.toml` and `uv.lock`.
-- Run backend tests with `docker compose exec backend pytest -q` (108 tests as of step 8). Integration tests (4, opt-in) hit real OpenAI: `docker compose exec backend pytest -m integration -v`.
+- Run backend tests with `docker compose exec backend pytest -q` (114 tests as of step 9). Integration tests (4, opt-in) hit real OpenAI: `docker compose exec backend pytest -m integration -v`.
+- Streaming chat at `ws://.../api/chat/ws`. Client sends `{conversation_id, content}`, server streams `{type: text|tool_start|tool_result|usage|done|error}`. Session cookie gates the handshake (close 1008 if unauthed). `AgentLoop` now emits an internal `AgentTurnEnd(text, tool_calls)` after each LLM iteration so `chat.py` has a single persistence boundary — every agent turn and tool result lands in the `messages` table as it streams.
 - REST API is mounted under `/api/*`. `app/api/` has router modules: `auth` (login/logout/me with starlette SessionMiddleware; session secret persisted at `data/.session_secret`), `vault` (tree/file — all gated by `require_auth`), `conversations` (CRUD — also auth-gated). Services are exposed as deps from `app.api.deps`. Streaming chat lands in step 9.
 - `app.main.create_app(settings)` is the app factory — use it in tests with a `Settings` pointed at tmp paths and drive with `fastapi.testclient.TestClient` (which runs lifespan).
 - Conversation persistence: `app/db/` has SQLAlchemy 2.x models (`Conversation`, `Message`) and `ConversationService` at `app.state.conversations`. SQLite lives at `/app/data/app.db` (bind-mounted → `./data/app.db` on host). `ConversationService.to_llm_messages(conv_id)` converts DB rows to `llm.Message` for feeding `AgentLoop.run(history=...)`. AgentLoop stays pure; the caller (step 8/9) owns the persist-as-you-stream flow.
