@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { useChatStream } from '../hooks/useChatStream'
 import {
@@ -70,14 +70,23 @@ export default function ChatView({ conversationId }: Props) {
     <div className="flex flex-col h-full">
       <header className="border-b px-4 py-3 flex items-center justify-between gap-3">
         <h2 className="font-medium truncate">{conversation.title}</h2>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleteConv.isPending}
-          className="text-xs text-red-600 hover:underline disabled:opacity-40 flex-shrink-0"
-        >
-          {deleteConv.isPending ? 'Deleting…' : 'Delete'}
-        </button>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <Link
+            to={`/audit?conversation_id=${encodeURIComponent(conversationId)}`}
+            className="text-xs text-gray-500 hover:underline"
+            title="View this conversation's LLM calls and tool invocations"
+          >
+            Debug
+          </Link>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleteConv.isPending}
+            className="text-xs text-red-600 hover:underline disabled:opacity-40"
+          >
+            {deleteConv.isPending ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 overflow-auto px-4 py-4 space-y-4 bg-white">

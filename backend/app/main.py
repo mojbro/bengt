@@ -105,6 +105,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             vault=vault_svc,
             audit=audit_service,
             budget=budget,
+            assistant_name=s.assistant_name,
         )
 
         ws_manager = ConnectionManager()

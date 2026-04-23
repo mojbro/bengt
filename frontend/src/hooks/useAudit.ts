@@ -18,11 +18,17 @@ export type BudgetStatusOut = {
   exceeded: boolean
 }
 
-export function useAuditRecent(limit: number = 100) {
+export function useAuditRecent(
+  limit: number = 100,
+  conversationId?: string,
+) {
   return useQuery({
-    queryKey: ['audit', 'recent', limit],
-    queryFn: () =>
-      apiFetch<AuditEntryOut[]>(`/audit/recent?limit=${limit}`),
+    queryKey: ['audit', 'recent', limit, conversationId ?? null],
+    queryFn: () => {
+      const params = new URLSearchParams({ limit: String(limit) })
+      if (conversationId) params.set('conversation_id', conversationId)
+      return apiFetch<AuditEntryOut[]>(`/audit/recent?${params.toString()}`)
+    },
     refetchInterval: 10_000,
   })
 }

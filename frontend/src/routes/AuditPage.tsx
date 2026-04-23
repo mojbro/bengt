@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+
 import { useAuditRecent, useBudget, type AuditEntryOut } from '../hooks/useAudit'
 
 function formatTime(iso: string): string {
@@ -39,8 +42,21 @@ function describe(entry: AuditEntryOut): string {
 }
 
 export default function AuditPage() {
-  const entries = useAuditRecent()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlConvId = searchParams.get('conversation_id') || ''
+  const [filter, setFilter] = useState<string>(urlConvId)
+
+  const activeFilter = urlConvId.trim() || undefined
+  const entries = useAuditRecent(100, activeFilter)
   const budget = useBudget()
+
+  function applyFilter(value: string) {
+    const trimmed = value.trim()
+    const next = new URLSearchParams(searchParams)
+    if (trimmed) next.set('conversation_id', trimmed)
+    else next.delete('conversation_id')
+    setSearchParams(next, { replace: true })
+  }
 
   return (
     <div className="h-full overflow-auto bg-white">
@@ -83,12 +99,68 @@ export default function AuditPage() {
         )}
       </div>
 
+      <div className="px-6 py-3 border-b">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            applyFilter(filter)
+          }}
+          className="flex items-center gap-2"
+        >
+          <label className="text-xs text-gray-500 whitespace-nowrap">
+            Filter by conversation id:
+          </label>
+          <input
+            type="text"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="conv-uuid…"
+            className="flex-1 border rounded px-2 py-1 text-sm font-mono min-w-0"
+          />
+          <button
+            type="submit"
+            className="text-xs bg-black text-white rounded px-3 py-1"
+          >
+            Filter
+          </button>
+          {activeFilter && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilter('')
+                applyFilter('')
+              }}
+              className="text-xs text-gray-500 hover:underline"
+            >
+              Clear
+            </button>
+          )}
+        </form>
+        {activeFilter && (
+          <p className="mt-2 text-xs text-gray-500">
+            Showing activity for conversation{' '}
+            <code className="bg-gray-100 px-1 py-0.5 rounded">{activeFilter}</code>
+            {' '}·{' '}
+            <Link
+              to={`/conversations/${activeFilter}`}
+              className="text-blue-700 hover:underline"
+            >
+              open this conversation
+            </Link>
+          </p>
+        )}
+      </div>
+
       <div className="p-6">
         {entries.isLoading && (
           <p className="text-sm text-gray-500">Loading…</p>
         )}
         {entries.data?.length === 0 && (
-          <p className="text-sm text-gray-500">No activity yet.</p>
+          <p className="text-sm text-gray-500">
+            {activeFilter
+              ? 'No activity logged against this conversation yet.'
+              : 'No activity yet.'}
+          </p>
         )}
         {entries.data && entries.data.length > 0 && (
           <table className="w-full text-sm">

@@ -263,6 +263,28 @@ async def test_system_prompt_instructs_tool_use_before_giving_up(vault: VaultSer
     assert "check before answering" in prompt.lower() or "look" in prompt.lower()
 
 
+async def test_system_prompt_includes_assistant_name_default(vault: VaultService):
+    agent = AgentLoop(
+        llm=ScriptedProvider([[Usage(0, 0, None)]]),
+        tools=ToolRegistry(),
+        vault=vault,
+    )
+    prompt = agent._build_context("hi", [])[0].content
+    assert "Your name is Bengt" in prompt
+
+
+async def test_system_prompt_uses_custom_assistant_name(vault: VaultService):
+    agent = AgentLoop(
+        llm=ScriptedProvider([[Usage(0, 0, None)]]),
+        tools=ToolRegistry(),
+        vault=vault,
+        assistant_name="Miles",
+    )
+    prompt = agent._build_context("hi", [])[0].content
+    assert "Your name is Miles" in prompt
+    assert "Bengt" not in prompt
+
+
 async def test_history_threads_between_user_and_system(vault: VaultService):
     provider = ScriptedProvider([[TextDelta("k"), Usage(0, 0, None)]])
     agent = AgentLoop(llm=provider, tools=ToolRegistry(), vault=vault)

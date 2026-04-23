@@ -111,6 +111,30 @@ def test_recent_orders_newest_first(audit_service):
     assert entries[0].kind == "tool_invocation"
 
 
+def test_recent_filters_by_conversation(audit_service):
+    audit_service.record_llm_call(
+        provider="openai",
+        model="a",
+        input_tokens=1,
+        output_tokens=1,
+        cost_usd=0.001,
+        conversation_id="conv-A",
+    )
+    audit_service.record_tool_invocation(
+        name="x", arguments={}, result="y", error=False, conversation_id="conv-B"
+    )
+    audit_service.record_tool_invocation(
+        name="y", arguments={}, result="z", error=False, conversation_id="conv-A"
+    )
+
+    only_a = audit_service.recent(conversation_id="conv-A")
+    assert {e.conversation_id for e in only_a} == {"conv-A"}
+    assert len(only_a) == 2
+
+    only_b = audit_service.recent(conversation_id="conv-B")
+    assert len(only_b) == 1
+
+
 def test_cost_today_sums_only_today(audit_service):
     audit_service.record_llm_call(
         provider="openai", model="a", input_tokens=1, output_tokens=1, cost_usd=0.01
