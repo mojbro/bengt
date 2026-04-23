@@ -11,6 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.agent import AgentLoop, ToolRegistry
 from app.agent.scheduler_tools import register_scheduler_tools
 from app.agent.vault_tools import register_vault_tools
+from app.agent.web_tools import register_web_tools
 from app.api import (
     audit as audit_api,
     auth,
@@ -96,6 +97,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         tools = ToolRegistry()
         register_vault_tools(tools, vault_svc, indexer)
         register_scheduler_tools(tools, scheduler)
+        register_web_tools(tools)
 
         agent = AgentLoop(
             llm=llm,
