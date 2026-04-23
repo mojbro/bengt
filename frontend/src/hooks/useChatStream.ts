@@ -38,16 +38,30 @@ export function useChatStream(conversationId: string | undefined) {
 
   useEffect(() => {
     if (!conversationId) return
+    // React StrictMode double-invokes effects in dev, so this effect runs,
+    // cleans up (closing the WS mid-handshake → onerror fires), and runs
+    // again. Without this guard, the stale WS's onerror writes "Connection
+    // error" into state even though the fresh WS will open fine.
+    let cancelled = false
     const ws = new WebSocket(wsUrl())
     wsRef.current = ws
 
-    ws.onopen = () => setConnected(true)
+    ws.onopen = () => {
+      if (cancelled) return
+      setConnected(true)
+      setError(null)
+    }
     ws.onclose = () => {
+      if (cancelled) return
       setConnected(false)
       if (wsRef.current === ws) wsRef.current = null
     }
-    ws.onerror = () => setError('Connection error')
+    ws.onerror = () => {
+      if (cancelled) return
+      setError('Connection error')
+    }
     ws.onmessage = (e) => {
+      if (cancelled) return
       let event: ChatEvent
       try {
         event = JSON.parse(e.data)
@@ -96,6 +110,7 @@ export function useChatStream(conversationId: string | undefined) {
     }
 
     return () => {
+      cancelled = true
       ws.close()
       if (wsRef.current === ws) wsRef.current = null
     }
