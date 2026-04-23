@@ -106,6 +106,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             audit=audit_service,
             budget=budget,
             assistant_name=s.assistant_name,
+            timezone=s.timezone,
         )
 
         ws_manager = ConnectionManager()

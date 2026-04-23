@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.agent.events import (
     AgentDone,
@@ -76,6 +77,7 @@ class AgentLoop:
         audit: AuditService | None = None,
         budget: BudgetService | None = None,
         assistant_name: str = "Bengt",
+        timezone: str = "UTC",
     ):
         self.llm = llm
         self.tools = tools
@@ -84,6 +86,13 @@ class AgentLoop:
         self.audit = audit
         self.budget = budget
         self.assistant_name = assistant_name
+        try:
+            self._tz: ZoneInfo = ZoneInfo(timezone)
+            self._tz_name = timezone
+        except ZoneInfoNotFoundError:
+            # Fallback rather than crash the lifespan on a typo.
+            self._tz = ZoneInfo("UTC")
+            self._tz_name = "UTC"
 
     async def run(
         self,
@@ -190,12 +199,16 @@ class AgentLoop:
     ) -> list[Message]:
         memory = self._safe_read("memory.md")
         preferences = self._safe_read("preferences.md")
+        now_local = datetime.now(self._tz)
+        today_str = (
+            now_local.strftime("%A, %Y-%m-%d") + f" ({self._tz_name})"
+        )
         system = _SYSTEM_PROMPT.format(
             name=self.assistant_name,
             memory=memory or "(empty)",
             preferences=preferences or "(empty)",
             vault_listing=self._vault_listing(),
-            today=date.today().isoformat(),
+            today=today_str,
         )
         return [
             Message(role="system", content=system),
