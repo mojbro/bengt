@@ -8,8 +8,10 @@ import {
   useConversation,
   useDeleteConversation,
   useRenameConversation,
+  useSetConversationModel,
   type MessageOut,
 } from '../hooks/useConversations'
+import { useModels } from '../hooks/useModels'
 
 import ChatInput from './ChatInput'
 import MessageBubble from './MessageBubble'
@@ -22,6 +24,8 @@ export default function ChatView({ conversationId }: Props) {
   const { streaming, error: streamError, connected, send } = useChatStream(conversationId)
   const deleteConv = useDeleteConversation()
   const renameConv = useRenameConversation()
+  const setModel = useSetConversationModel()
+  const models = useModels()
   const navigate = useNavigate()
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -147,6 +151,24 @@ export default function ChatView({ conversationId }: Props) {
           )}
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
+          {models.data && models.data.models.length > 1 && (
+            <select
+              value={conversation.model ?? models.data.default}
+              onChange={(e) => {
+                const next = e.target.value
+                setModel.mutate({ id: conversationId, model: next })
+              }}
+              disabled={setModel.isPending}
+              className="text-xs border border-gray-300 rounded-lg px-2 py-1 bg-white hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 disabled:opacity-50"
+              title="Model used for replies in this conversation"
+            >
+              {models.data.models.map((m) => (
+                <option key={m.name} value={m.name}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          )}
           <Link
             to={`/audit?conversation_id=${encodeURIComponent(conversationId)}`}
             className="text-xs text-gray-500 hover:underline"

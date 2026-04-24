@@ -20,6 +20,10 @@ class Conversation(Base):
 
     id: Mapped[str] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(default="New thread")
+    # Configured model name (a key from Settings.llm_models). NULL means
+    # "use the default"; the existence of the column is handled by a
+    # small inline migration in app.main so old databases upgrade cleanly.
+    model: Mapped[str | None] = mapped_column(default=None, nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=_now)
     updated_at: Mapped[datetime] = mapped_column(default=_now, onupdate=_now)
 

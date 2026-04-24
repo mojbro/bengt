@@ -25,9 +25,11 @@ class ConversationService:
 
     # -------------------- conversations
 
-    def create(self, title: str = "New thread") -> Conversation:
+    def create(
+        self, title: str = "New thread", model: str | None = None
+    ) -> Conversation:
         with self._factory() as session:
-            conv = Conversation(id=str(uuid.uuid4()), title=title)
+            conv = Conversation(id=str(uuid.uuid4()), title=title, model=model)
             session.add(conv)
             session.commit()
             session.refresh(conv)
@@ -55,6 +57,16 @@ class ConversationService:
             if conv is None:
                 raise NotFoundError(f"conversation {conv_id!r} not found")
             conv.title = title
+            conv.updated_at = datetime.now(timezone.utc)
+            session.commit()
+
+    def set_model(self, conv_id: str, model: str | None) -> None:
+        """Assign (or clear) the model for a conversation."""
+        with self._factory() as session:
+            conv = session.get(Conversation, conv_id)
+            if conv is None:
+                raise NotFoundError(f"conversation {conv_id!r} not found")
+            conv.model = model
             conv.updated_at = datetime.now(timezone.utc)
             session.commit()
 

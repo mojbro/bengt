@@ -108,7 +108,7 @@ async def chat_ws(websocket: WebSocket) -> None:
 
             # Validate the conversation exists before touching anything.
             try:
-                conversations.get(conv_id)
+                conv = conversations.get(conv_id)
             except NotFoundError:
                 await websocket.send_json(
                     {"type": "error", "message": f"conversation {conv_id!r} not found"}
@@ -122,7 +122,10 @@ async def chat_ws(websocket: WebSocket) -> None:
 
             try:
                 async for event in agent.run(
-                    content, history=history, conversation_id=conv_id
+                    content,
+                    history=history,
+                    conversation_id=conv_id,
+                    model=conv.model,
                 ):
                     wire = _event_to_wire(event)
                     if wire is not None:

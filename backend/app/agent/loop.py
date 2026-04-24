@@ -78,8 +78,12 @@ class AgentLoop:
         budget: BudgetService | None = None,
         assistant_name: str = "Bengt",
         timezone: str = "UTC",
+        llms: dict[str, LLMProvider] | None = None,
+        default_model: str | None = None,
     ):
-        self.llm = llm
+        self.llm = llm  # fallback / single-model mode
+        self.llms = llms or {}
+        self.default_model = default_model
         self.tools = tools
         self.vault = vault
         self.max_iterations = max_iterations
@@ -94,14 +98,31 @@ class AgentLoop:
             self._tz = ZoneInfo("UTC")
             self._tz_name = "UTC"
 
+    def _resolve_llm(self, model: str | None) -> LLMProvider:
+        """Pick the provider to use for this run.
+
+        - If a specific `model` is requested and we have a registry, use it.
+        - Else if a registry is configured, use the default.
+        - Else fall back to the single `self.llm` wired at construction time.
+        """
+        if self.llms:
+            requested = model or self.default_model
+            if requested and requested in self.llms:
+                return self.llms[requested]
+            if self.default_model and self.default_model in self.llms:
+                return self.llms[self.default_model]
+        return self.llm
+
     async def run(
         self,
         user_message: str,
         history: list[Message] | None = None,
         conversation_id: str | None = None,
+        model: str | None = None,
     ) -> AsyncIterator[AgentEvent]:
         messages = self._build_context(user_message, history or [])
         tool_specs = self.tools.specs() or None
+        llm = self._resolve_llm(model)
 
         for _ in range(self.max_iterations):
             # Check the budget before each LLM call — stops a runaway agent
@@ -119,7 +140,7 @@ class AgentLoop:
 
             collected: list[ToolCall] = []
             text_chunks: list[str] = []
-            async for event in self.llm.stream(messages, tools=tool_specs):
+            async for event in llm.stream(messages, tools=tool_specs):
                 if isinstance(event, TextDelta):
                     text_chunks.append(event.text)
                     yield AgentText(text=event.text)
@@ -128,8 +149,8 @@ class AgentLoop:
                 elif isinstance(event, Usage):
                     if self.audit:
                         self.audit.record_llm_call(
-                            provider=self.llm.name,
-                            model=self.llm.model,
+                            provider=llm.name,
+                            model=llm.model,
                             input_tokens=event.input_tokens,
                             output_tokens=event.output_tokens,
                             cost_usd=event.cost_usd,
