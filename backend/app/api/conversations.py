@@ -17,6 +17,7 @@ router = APIRouter(
 class ConversationOut(BaseModel):
     id: str
     title: str
+    model: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -37,10 +38,18 @@ class ConversationDetail(ConversationOut):
 
 class CreateRequest(BaseModel):
     title: str = "New thread"
+    model: str | None = None
 
 
-class RenameRequest(BaseModel):
-    title: str
+class PatchRequest(BaseModel):
+    """All fields optional — only the ones present get applied."""
+
+    title: str | None = None
+    # `model` uses an explicit sentinel (not-present vs null) via
+    # Pydantic's model_fields_set. Clients that want to clear the model
+    # and fall back to the default should send {"model": null}; clients
+    # that want to leave it alone should omit the field.
+    model: str | None = None
 
 
 @router.get("", response_model=list[ConversationOut])
@@ -55,7 +64,7 @@ def create_conversation(
     body: CreateRequest,
     service: ConversationService = Depends(get_conversations),
 ) -> ConversationOut:
-    return _conv_to_out(service.create(title=body.title))
+    return _conv_to_out(service.create(title=body.title, model=body.model))
 
 
 @router.get("/{conv_id}", response_model=ConversationDetail)
@@ -71,6 +80,7 @@ def get_conversation(
     return ConversationDetail(
         id=conv.id,
         title=conv.title,
+        model=conv.model,
         created_at=conv.created_at,
         updated_at=conv.updated_at,
         messages=[_msg_to_out(m) for m in msgs],
@@ -78,13 +88,17 @@ def get_conversation(
 
 
 @router.patch("/{conv_id}", response_model=ConversationOut)
-def rename_conversation(
+def patch_conversation(
     conv_id: str,
-    body: RenameRequest,
+    body: PatchRequest,
     service: ConversationService = Depends(get_conversations),
 ) -> ConversationOut:
     try:
-        service.rename(conv_id, body.title)
+        fields_set = body.model_fields_set
+        if "title" in fields_set and body.title is not None:
+            service.rename(conv_id, body.title)
+        if "model" in fields_set:
+            service.set_model(conv_id, body.model)
         return _conv_to_out(service.get(conv_id))
     except NotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
@@ -105,6 +119,7 @@ def _conv_to_out(conv) -> ConversationOut:
     return ConversationOut(
         id=conv.id,
         title=conv.title,
+        model=conv.model,
         created_at=conv.created_at,
         updated_at=conv.updated_at,
     )

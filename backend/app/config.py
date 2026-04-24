@@ -7,6 +7,13 @@ class Settings(BaseSettings):
     llm_provider: str = "openai"
     llm_api_key: str = ""
     llm_model: str = "gpt-4o"
+    # JSON object mapping display names → model IDs, e.g.
+    #   LLM_MODELS={"fast":"gpt-4o-mini","standard":"gpt-5.4-mini","smart":"gpt-5"}
+    # If unset/empty, we run in single-model mode using llm_model.
+    llm_models: str = ""
+    # Key into llm_models (or ignored in single-model mode). If empty in
+    # multi-model mode, falls back to the first entry.
+    llm_default_model: str = ""
     daily_budget_usd: float = 5.0
     auth_password: str = ""
     vault_path: str = "/app/vault"

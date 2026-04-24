@@ -17,6 +17,7 @@ from app.api import (
     auth,
     chat,
     conversations,
+    models as models_api,
     scheduler as scheduler_api,
     todos as todos_api,
     uploads as uploads_api,
@@ -26,9 +27,10 @@ from app.budget import BudgetService
 from app.config import Settings
 from app.config import settings as default_settings
 from app.db import AuditService, ConversationService, NotFoundError
+from app.db.migrations import migrate
 from app.db.models import Base
 from app.indexer import Indexer
-from app.llm import build_provider
+from app.llm.factory import build_providers
 from app.scheduler import create_scheduler
 from app.scheduler_runner import (
     SchedulerServices,
@@ -88,12 +90,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         engine = create_engine(f"sqlite:///{data_path / 'app.db'}")
         Base.metadata.create_all(engine)
+        # Idempotent schema migrations for columns added to existing tables.
+        migrate(engine)
         session_factory = sessionmaker(bind=engine, expire_on_commit=False)
         conv_service = ConversationService(session_factory)
         audit_service = AuditService(session_factory)
         budget = BudgetService(audit_service, cap_usd=s.daily_budget_usd)
 
-        llm = build_provider(s)
+        # One provider per configured model; `default_model` picks which one
+        # is used when a conversation hasn't chosen explicitly.
+        llms, default_model = build_providers(s)
+        llm = llms[default_model]
 
         scheduler = create_scheduler()
         tools = ToolRegistry()
@@ -109,6 +116,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             budget=budget,
             assistant_name=s.assistant_name,
             timezone=s.timezone,
+            llms=llms,
+            default_model=default_model,
         )
 
         ws_manager = ConnectionManager()
@@ -136,6 +145,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.vault = vault_svc
         app.state.indexer = indexer
         app.state.llm = llm
+        app.state.llms = llms
+        app.state.default_model = default_model
         app.state.scheduler = scheduler
         app.state.tools = tools
         app.state.agent = agent
@@ -169,6 +180,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(audit_api.router)
     app.include_router(todos_api.router)
     app.include_router(uploads_api.router)
+    app.include_router(models_api.router)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:

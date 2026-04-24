@@ -21,6 +21,7 @@ export type MessageOut = {
 export type ConversationOut = {
   id: string
   title: string
+  model: string | null
   created_at: string
   updated_at: string
 }
@@ -72,6 +73,22 @@ export function useRenameConversation() {
       apiFetch<ConversationOut>(`/conversations/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ title }),
+      }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['conversations'] })
+      qc.invalidateQueries({ queryKey: ['conversations', data.id] })
+    },
+  })
+}
+
+export function useSetConversationModel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, model }: { id: string; model: string | null }) =>
+      apiFetch<ConversationOut>(`/conversations/${id}`, {
+        method: 'PATCH',
+        // Send null explicitly so the backend can distinguish clear vs omit.
+        body: JSON.stringify({ model }),
       }),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['conversations'] })
