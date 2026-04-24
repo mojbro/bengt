@@ -153,3 +153,99 @@ def test_download_404_for_missing(authed_client):
         params={"path": "uploads/2099-01-01/ghost.pdf"},
     )
     assert r.status_code == 404
+
+
+# -------------------- from-url
+
+
+class _FakeResponse:
+    def __init__(self, status_code: int, content: bytes = b"", headers: dict | None = None) -> None:
+        self.status_code = status_code
+        self.content = content
+        self.headers = headers or {}
+
+
+class _FakeAsyncClient:
+    """Injected via monkeypatch so from-url tests don't hit the network."""
+
+    response: _FakeResponse = _FakeResponse(200)
+
+    def __init__(self, *args, **kwargs) -> None:
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        return None
+
+    async def get(self, url, **kwargs):
+        return self.response
+
+
+def test_from_url_rejects_sharepoint_before_network(authed_client):
+    r = authed_client.post(
+        "/api/uploads/from-url",
+        json={"url": "https://releasefinansab.sharepoint.com/:w:/r/sites/X/doc.docx?e=tok"},
+    )
+    assert r.status_code == 422
+    assert "sharepoint" in r.json()["detail"].lower()
+
+
+def test_from_url_rejects_non_http(authed_client):
+    r = authed_client.post(
+        "/api/uploads/from-url",
+        json={"url": "file:///etc/passwd"},
+    )
+    assert r.status_code == 415
+
+
+def test_from_url_public_success(authed_client, monkeypatch):
+    import httpx
+
+    _FakeAsyncClient.response = _FakeResponse(
+        200,
+        b"# Hello\n\nPublic doc body with enough content to extract.",
+        {
+            "content-type": "text/markdown; charset=utf-8",
+            "content-disposition": 'attachment; filename="public.md"',
+        },
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+
+    r = authed_client.post(
+        "/api/uploads/from-url",
+        json={"url": "https://example.com/public.md"},
+    )
+    assert r.status_code == 201
+    body = r.json()
+    assert body["md_path"].endswith("public.md")
+    assert body["extracted_chars"] > 0
+
+
+def test_from_url_surfaces_404(authed_client, monkeypatch):
+    import httpx
+
+    _FakeAsyncClient.response = _FakeResponse(404)
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+
+    r = authed_client.post(
+        "/api/uploads/from-url",
+        json={"url": "https://example.com/missing.pdf"},
+    )
+    assert r.status_code == 415
+    assert "404" in r.json()["detail"]
+
+
+def test_from_url_auth_required(authed_client, monkeypatch):
+    import httpx
+
+    _FakeAsyncClient.response = _FakeResponse(401)
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+
+    r = authed_client.post(
+        "/api/uploads/from-url",
+        json={"url": "https://example.com/private.pdf"},
+    )
+    assert r.status_code == 422
+    assert "auth" in r.json()["detail"].lower()

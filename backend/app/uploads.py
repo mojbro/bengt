@@ -20,7 +20,9 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import BinaryIO
+from urllib.parse import unquote, urlparse
 
+import httpx
 import trafilatura
 
 from app.db.audit import AuditService
@@ -36,6 +38,22 @@ class UnsupportedFileTypeError(ValueError):
 
 class FileTooLargeError(ValueError):
     pass
+
+
+class AuthRequiredError(ValueError):
+    """Raised when a URL is behind auth we can't negotiate (SharePoint,
+    Google Drive private links, etc.)."""
+
+
+_AUTH_GATED_HOSTS = (
+    "sharepoint.com",
+    "onedrive.live.com",
+    "my.sharepoint.com",
+)
+
+
+_FETCH_TIMEOUT_S = 30
+_FETCH_MAX_BYTES = 30 * 1024 * 1024
 
 
 MAX_EXTRACTED_CHARS = 500_000  # ~500KB of text — about 100 pages of prose.
@@ -323,3 +341,98 @@ def open_vault_file_for_stream(
         raise FileNotFoundError(path)
     size = target.stat().st_size
     return target.open("rb"), size, target.name
+
+
+def _filename_from_response(response: httpx.Response, url: str) -> str:
+    """Best-effort filename: Content-Disposition wins, else URL basename."""
+    cd = response.headers.get("content-disposition", "")
+    m = re.search(r'filename\*?=(?:UTF-8\'\')?"?([^";]+)"?', cd)
+    if m:
+        return unquote(m.group(1).strip())
+    parsed = urlparse(url)
+    name = Path(unquote(parsed.path)).name
+    return name or "download"
+
+
+def _looks_auth_gated(url: str) -> bool:
+    try:
+        host = urlparse(url).hostname or ""
+    except Exception:
+        return False
+    host = host.lower()
+    return any(host == h or host.endswith("." + h) for h in _AUTH_GATED_HOSTS)
+
+
+async def fetch_url_as_upload(
+    url: str,
+    vault: VaultService,
+    llm: LLMProvider,
+    audit: AuditService | None,
+    conversation_id: str | None = None,
+) -> "UploadResult":
+    """Fetch a URL's bytes and run them through the same pipeline as a
+    file upload. Raises AuthRequiredError for known auth-gated hosts (or
+    401/403 responses) with a pointed error message; otherwise the usual
+    UnsupportedFileTypeError / FileTooLargeError.
+    """
+    url = url.strip()
+    if not (url.startswith("http://") or url.startswith("https://")):
+        raise UnsupportedFileTypeError(
+            "URL must start with http:// or https://"
+        )
+
+    if _looks_auth_gated(url):
+        raise AuthRequiredError(
+            "SharePoint / OneDrive links need tenant authentication. "
+            "The MVP can only fetch public URLs. Workaround: open the "
+            "document in the web UI, download it, and use the paperclip "
+            "upload instead. (Microsoft Graph integration is on the v0.2 "
+            "roadmap.)"
+        )
+
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True, timeout=_FETCH_TIMEOUT_S
+        ) as client:
+            response = await client.get(url)
+    except httpx.HTTPError as exc:
+        raise UnsupportedFileTypeError(
+            f"Couldn't reach the URL: {exc}"
+        ) from exc
+
+    if response.status_code in (401, 403):
+        raise AuthRequiredError(
+            f"The URL requires authentication (HTTP {response.status_code}). "
+            "Try downloading the file locally and using paperclip instead."
+        )
+    if response.status_code >= 400:
+        raise UnsupportedFileTypeError(
+            f"The URL returned HTTP {response.status_code}."
+        )
+
+    body = response.content
+    if len(body) > _FETCH_MAX_BYTES:
+        raise FileTooLargeError(
+            f"URL content is {len(body):,} bytes; the cap is "
+            f"{_FETCH_MAX_BYTES:,}."
+        )
+
+    filename = _filename_from_response(response, url)
+    # If the URL had no extension (e.g. a CMS page), fall back to .html
+    # so the extractor routes to trafilatura.
+    if not Path(filename).suffix:
+        ct = (response.headers.get("content-type") or "").split(";")[0].strip()
+        if ct == "text/html":
+            filename = f"{filename}.html"
+        elif ct == "application/pdf":
+            filename = f"{filename}.pdf"
+
+    return await handle_upload(
+        file_bytes=body,
+        filename=filename,
+        content_type=response.headers.get("content-type", ""),
+        vault=vault,
+        llm=llm,
+        audit=audit,
+        conversation_id=conversation_id,
+    )
