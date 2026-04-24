@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.config import Settings
-from app.llm.factory import LLMConfigError, build_providers
+from app.llm.factory import LLMConfigError, ModelSpec, _parse_models_map, build_providers
 from app.main import create_app
 
 
@@ -175,3 +175,60 @@ def test_get_conversation_includes_model(authed_client):
     r = authed_client.get(f"/api/conversations/{created['id']}")
     assert r.status_code == 200
     assert r.json()["model"] == "smart"
+
+
+# -------------------- effort / ModelSpec parsing
+
+
+def test_parse_simple_string_values():
+    out = _parse_models_map('{"fast":"gpt-4o-mini"}')
+    assert out == {"fast": ModelSpec(model="gpt-4o-mini", effort=None)}
+
+
+def test_parse_object_values_with_effort():
+    out = _parse_models_map(
+        '{"Quick":{"model":"gpt-5-mini","effort":"low"},'
+        '"Smart":{"model":"gpt-5.4","effort":"high"}}'
+    )
+    assert out["Quick"] == ModelSpec(model="gpt-5-mini", effort="low")
+    assert out["Smart"] == ModelSpec(model="gpt-5.4", effort="high")
+
+
+def test_parse_object_value_without_effort_is_none():
+    out = _parse_models_map('{"Plain":{"model":"gpt-4o"}}')
+    assert out["Plain"].effort is None
+
+
+def test_parse_rejects_invalid_effort():
+    with pytest.raises(LLMConfigError, match="effort must be"):
+        _parse_models_map('{"Bad":{"model":"gpt-5","effort":"crazy"}}')
+
+
+def test_parse_rejects_object_without_model():
+    with pytest.raises(LLMConfigError, match="model"):
+        _parse_models_map('{"Bad":{"effort":"high"}}')
+
+
+def test_build_providers_plumbs_effort_into_provider():
+    s = Settings(
+        llm_provider="openai",
+        llm_api_key="sk-test",
+        llm_model="gpt-4o",
+        llm_models='{"Quick":{"model":"gpt-5-mini","effort":"low"},'
+        '"Smart":{"model":"gpt-5.4","effort":"high"}}',
+        llm_default_model="Quick",
+    )
+    providers, default = build_providers(s)
+    assert default == "Quick"
+    assert providers["Quick"].model == "gpt-5-mini"
+    assert providers["Quick"].reasoning_effort == "low"
+    assert providers["Smart"].model == "gpt-5.4"
+    assert providers["Smart"].reasoning_effort == "high"
+
+
+def test_models_endpoint_reports_effort_null_when_unset(authed_client):
+    r = authed_client.get("/api/models")
+    assert r.status_code == 200
+    for m in r.json()["models"]:
+        # Fixture config above doesn't set effort; should be null.
+        assert m["effort"] is None

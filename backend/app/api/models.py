@@ -14,7 +14,8 @@ router = APIRouter(
 
 class ModelOut(BaseModel):
     name: str  # display name / key (the value stored on conversations)
-    id: str  # actual model id passed to the provider (e.g. gpt-4o-mini)
+    id: str  # actual model id passed to the provider (e.g. gpt-5.4)
+    effort: str | None  # reasoning_effort: low | medium | high | None
 
 
 class ModelsListOut(BaseModel):
@@ -27,6 +28,13 @@ def list_models(request: Request) -> ModelsListOut:
     llms = getattr(request.app.state, "llms", {}) or {}
     default = getattr(request.app.state, "default_model", None) or ""
     return ModelsListOut(
-        models=[ModelOut(name=name, id=provider.model) for name, provider in llms.items()],
+        models=[
+            ModelOut(
+                name=name,
+                id=provider.model,
+                effort=getattr(provider, "reasoning_effort", None),
+            )
+            for name, provider in llms.items()
+        ],
         default=default,
     )

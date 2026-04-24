@@ -5,6 +5,7 @@ import { apiFetch } from '../api/client'
 export type ModelOut = {
   name: string // key the backend uses for conversation.model
   id: string // the underlying provider model id
+  effort: 'low' | 'medium' | 'high' | null
 }
 
 export type ModelsListOut = {

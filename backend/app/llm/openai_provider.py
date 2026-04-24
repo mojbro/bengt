@@ -18,9 +18,17 @@ from app.llm.types import (
 class OpenAIProvider:
     name = "openai"
 
-    def __init__(self, api_key: str, model: str):
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        reasoning_effort: str | None = None,
+    ):
         self._client = AsyncOpenAI(api_key=api_key)
         self.model = model
+        # Only passed through on the wire when set — non-reasoning models
+        # don't accept the param and would error.
+        self.reasoning_effort = reasoning_effort
 
     async def stream(
         self,
@@ -35,6 +43,8 @@ class OpenAIProvider:
         }
         if tools:
             kwargs["tools"] = [self._to_wire_tool(t) for t in tools]
+        if self.reasoning_effort:
+            kwargs["reasoning_effort"] = self.reasoning_effort
 
         stream = await self._client.chat.completions.create(**kwargs)
 
