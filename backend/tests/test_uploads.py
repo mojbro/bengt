@@ -1,7 +1,7 @@
 """Unit tests for upload helpers: safe_filename, extract_text, chunking."""
 
 from app.indexer import chunk_text
-from app.uploads import extract_text, safe_filename, UnsupportedFileTypeError
+from app.uploads import _looks_auth_gated, extract_text, safe_filename, UnsupportedFileTypeError
 
 import pytest
 
@@ -71,3 +71,18 @@ def test_chunk_text_oversized_paragraph_stays_single_chunk():
     # One oversized chunk rather than mid-word splitting.
     assert len(chunks) == 1
     assert len(chunks[0]) == 3000
+
+
+def test_looks_auth_gated_sharepoint():
+    assert _looks_auth_gated(
+        "https://releasefinansab.sharepoint.com/:w:/r/sites/Foo/Doc.docx?e=x"
+    )
+    assert _looks_auth_gated("https://my.sharepoint.com/personal/foo.docx")
+    assert _looks_auth_gated("https://onedrive.live.com/foo")
+
+
+def test_looks_auth_gated_public_urls_pass_through():
+    assert not _looks_auth_gated("https://example.com/public.pdf")
+    assert not _looks_auth_gated(
+        "https://raw.githubusercontent.com/foo/bar/main/x.md"
+    )
